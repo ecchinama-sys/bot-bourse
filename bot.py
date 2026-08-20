@@ -10,9 +10,13 @@ TELEGRAM_CHAT_ID = "6736922134"
 NOTION_API_KEY = "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"
 NOTION_DATABASE_ID = "https://app.notion.com/p/3c2ff48f1aed803db912e3f32650c7a5?v=3c2ff48f1aed80499920000c65daf439&source=copy_link"
 
-# Initialisation du client Groq avec le modèle Llama stable
+# Initialisation du client Groq et sélection automatique du modèle Llama disponible
 client = Groq(api_key=GROQ_API_KEY)
-SELECTED_MODEL = "llama-3.3-70b-versatile"
+try:
+    models_list = client.models.list().data
+    SELECTED_MODEL = next((m.id for m in models_list if "llama" in m.id.lower() and "whisper" not in m.id.lower() and "guard" not in m.id.lower()), "llama-3.1-70b-versatile")
+except Exception:
+    SELECTED_MODEL = "llama-3.1-70b-versatile"
 
 def add_to_notion(title, content):
     """Enregistre l'article et l'analyse dans Notion avec le titre et la date du jour."""
