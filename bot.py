@@ -4,17 +4,16 @@ import requests
 from datetime import datetime
 from groq import Groq
 
-# --- TES CLES API (À remplir) ---
+# --- TES CLES API ---
 GROQ_API_KEY = "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"
 TELEGRAM_BOT_TOKEN = "8820955818:AAGtMB-LwbJSw7CS8uYWIMVVLkT-Lvkkd-s"
 TELEGRAM_CHAT_ID = "6736922134"
 NOTION_API_KEY = "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"
 NOTION_DATABASE_ID = "https://app.notion.com/p/3c2ff48f1aed803db912e3f32650c7a5?v=3c2ff48f1aed80499920000c65daf439&source=copy_link"
 
-# Initialisation Groq et sélection automatique du modèle
+# Initialisation Groq avec un vrai modèle Llama stable et direct
 client = Groq(api_key=GROQ_API_KEY)
-models_list = client.models.list().data
-SELECTED_MODEL = next((m.id for m in models_list if "llama" in m.id.lower() and "whisper" not in m.id.lower() and "guard" not in m.id.lower()), "llama-3.3-70b-versatile")
+SELECTED_MODEL = "llama-3.3-70b-versatile"
 
 # Fonction d'envoi vers Notion
 def add_to_notion(title, content):
@@ -27,7 +26,7 @@ def add_to_notion(title, content):
     data = {
         "parent": {"database_id": NOTION_DATABASE_ID},
         "properties": {"Name": {"title": [{"text": {"content": title}}]}},
-        "children": [{"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"type": "text", "text": {"content": content[:2000]}}]}}]
+        "children": [{"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": content[:2000]}}]}}]
     }
     response = requests.post(url, headers=headers, json=data)
     return response.status_code
@@ -46,7 +45,7 @@ def tache_flash_bourse():
     
     prompt = f"Tu es un analyste financier senior. Rédige un flash d'actualité boursière percutant et diversifié. Angle prioritaire pour cette édition : {angle_du_jour}. Format attendu : 1. Tendance & Contexte Général, 2. Actualités & Thématiques Clés, 3. Le Regard de l'Expert. Style : Professionnel, direct, percutant et lisible sur mobile."
     
-    # Génération IA
+    # Génération IA avec le modèle stable
     completion = client.chat.completions.create(
         model=SELECTED_MODEL,
         messages=[{"role": "user", "content": prompt}]
