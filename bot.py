@@ -3,7 +3,6 @@ import random
 import requests
 from datetime import datetime
 from groq import Groq
-from apscheduler.schedulers.blocking import BlockingScheduler
 
 # --- TES CLES API ---
 GROQ_API_KEY = "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"
@@ -82,8 +81,3 @@ Style : Professionnel, direct, percutant et lisible sur mobile."""
         print(f"⚠️ Erreur lors de l'envoi automatique.")
 
 # Configuration du planificateur pour s'exécuter chaque jour à 00:00 pile (Heure UTC / Serveur)
-scheduler = BlockingScheduler()
-scheduler.add_job(tache_flash_bourse, 'cron', hour=0, minute=0)
-
-print("🚀 Bot planificateur démarré sur Render : Il générera le flash tous les jours à minuit.")
-scheduler.start()
