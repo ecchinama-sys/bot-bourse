@@ -10,13 +10,9 @@ TELEGRAM_CHAT_ID = "6736922134"
 NOTION_API_KEY = "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"
 NOTION_DATABASE_ID = "https://app.notion.com/p/3c2ff48f1aed803db912e3f32650c7a5?v=3c2ff48f1aed80499920000c65daf439&source=copy_link"
 
-# Initialisation du client Groq et sélection automatique du modèle Llama disponible
+# Initialisation directe et propre du client avec un modèle textuel stable
 client = Groq(api_key=GROQ_API_KEY)
-try:
-    models_list = client.models.list().data
-    SELECTED_MODEL = next((m.id for m in models_list if "llama" in m.id.lower() and "whisper" not in m.id.lower() and "guard" not in m.id.lower()), "llama-3.1-70b-versatile")
-except Exception:
-    SELECTED_MODEL = "llama-3.1-70b-versatile"
+SELECTED_MODEL = "llama-3.1-70b-versatile"
 
 def add_to_notion(title, content):
     """Enregistre l'article et l'analyse dans Notion avec le titre et la date du jour."""
@@ -74,7 +70,7 @@ def generer_analyse():
     return str(completion.choices[0].message.content)
 
 def envoyer_telegram(message):
-    """Envoie le message sur Telegram avec les boutons interactifs en bas (Régénérer + Démarrer)."""
+    """Envoie le message sur Telegram avec les boutons interactifs en bas."""
     titre = f"Flash Finance & Bourse - {datetime.now().strftime('%d/%m/%Y')}"
     url_telegram = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     
@@ -101,9 +97,9 @@ def envoyer_telegram(message):
     }
     requests.post(url_telegram, json=payload)
 
-def main():
+def tache_flash_bourse():
     """Fonction principale gérant la vérification des clics et le cycle d'exécution."""
-    print("\n🚀 Lancement du script de flash boursier...")
+    print("\n🚀 Lancement de l'analyse boursière...")
     
     # Vérification des interactions de clic sur Telegram
     try:
@@ -113,7 +109,7 @@ def main():
                 if "callback_query" in u:
                     callback_data = u["callback_query"]["data"]
                     if callback_data in ["regen", "start_bot"]:
-                        print("🔄 Action interactive détectée depuis Telegram : Génération d'une nouvelle analyse...")
+                        print("🔄 Action interactive détectée depuis Telegram...")
                         requests.get(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates?offset={u['update_id'] + 1}")
     except Exception as e:
         print(f"Info lors de la vérification des updates : {e}")
@@ -128,7 +124,7 @@ def main():
     # Enregistrement Notion
     status_notion = add_to_notion(titre_page, message_ia)
     if status_notion == 200:
-        print("✅ Données enregistrées dans Notion avec succès (titre, contenu et date).")
+        print("✅ Données enregistrées dans Notion avec succès.")
     else:
         print(f"⚠️ Erreur lors de l'enregistrement Notion (Code : {status_notion})")
 
@@ -137,4 +133,4 @@ def main():
     print("✅ Message et boutons interactifs envoyés sur Telegram !")
 
 if __name__ == "__main__":
-    main()
+    tache_flash_bourse()
