@@ -15,12 +15,7 @@ client = Groq(api_key=GROQ_API_KEY)
 
 def generer_analyse_financiere():
     """Génère l'analyse boursière via l'IA Groq"""
-    prompt = (
-        "Rédige un flash d'analyse financière court, percutant et dynamique "
-        "sur les marchés du jour avec les tendances clés. "
-        "Utilise des emojis pertinents (📈, 📉, 💡, 💰, 🚀, ⚡) au début de chaque ligne ou section. "
-        "IMPORTANT : # Au moment d'envoyer à Telegram, tu nettoies tous les astérisques d'un coup : texte_final = analyse.replace("*", "")."
-    )
+    prompt = "Rédige un flash d'analyse financière court, percutant et dynamique sur les marchés du jour avec des emojis (📈, 📉, 💡, 💰, 🚀)."
     
     chat_completion = client.chat.completions.create(
         messages=[
@@ -60,6 +55,7 @@ def envoyer_telegram():
     """Génère l'analyse, l'envoie sur Notion, puis l'envoie sur Telegram avec le bouton Régénérer"""
     print("🔄 Génération d'une nouvelle analyse en cours...")
     analyse = generer_analyse_financiere()
+    analyse = analyse_brute.replace("*", "")
     
     # Enregistrement Notion
     enregistrer_sur_notion(analyse)
