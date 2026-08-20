@@ -74,7 +74,7 @@ def generer_analyse():
     return str(completion.choices[0].message.content)
 
 def envoyer_telegram(message):
-    """Envoie le message sur Telegram avec le bouton interactif en bas."""
+    """Envoie le message sur Telegram avec les boutons interactifs en bas (Régénérer + Démarrer)."""
     titre = f"Flash Finance & Bourse - {datetime.now().strftime('%d/%m/%Y')}"
     url_telegram = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     
@@ -86,8 +86,14 @@ def envoyer_telegram(message):
             "inline_keyboard": [
                 [
                     {
-                        "text": "🔄 Générer une nouvelle analyse",
+                        "text": "🔄 Régénérer un autre article",
                         "callback_data": "regen"
+                    }
+                ],
+                [
+                    {
+                        "text": "🚀 /start (Redémarrer / Actualiser)",
+                        "callback_data": "start_bot"
                     }
                 ]
             ]
@@ -99,16 +105,18 @@ def main():
     """Fonction principale gérant la vérification des clics et le cycle d'exécution."""
     print("\n🚀 Lancement du script de flash boursier...")
     
-    # Vérification optionnelle des interactions de clic sur Telegram
+    # Vérification des interactions de clic sur Telegram
     try:
         updates = requests.get(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates").json()
         if "result" in updates:
             for u in updates["result"]:
-                if "callback_query" in u and u["callback_query"]["data"] == "regen":
-                    print("🔄 Clic détecté sur le bouton Telegram : Génération d'une nouvelle variante...")
-                    requests.get(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates?offset={u['update_id'] + 1}")
+                if "callback_query" in u:
+                    callback_data = u["callback_query"]["data"]
+                    if callback_data in ["regen", "start_bot"]:
+                        print("🔄 Action interactive détectée depuis Telegram : Génération d'une nouvelle analyse...")
+                        requests.get(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates?offset={u['update_id'] + 1}")
     except Exception as e:
-        print(f"Info (ignorée) lors de la vérification des updates : {e}")
+        print(f"Info lors de la vérification des updates : {e}")
 
     # Génération du contenu via l'IA
     message_ia = generer_analyse()
@@ -126,7 +134,7 @@ def main():
 
     # Envoi Telegram
     envoyer_telegram(message_ia)
-    print("✅ Message et bouton interactif envoyés sur Telegram !")
+    print("✅ Message et boutons interactifs envoyés sur Telegram !")
 
 if __name__ == "__main__":
     main()
