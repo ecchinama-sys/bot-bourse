@@ -14,7 +14,7 @@ NOTION_DATABASE_ID = "https://app.notion.com/p/3c2ff48f1aed803db912e3f32650c7a5?
 # Initialisation Groq et sélection automatique du modèle
 client = Groq(api_key=GROQ_API_KEY)
 models_list = client.models.list().data
-SELECTED_MODEL = next((m.id for m in models_list if "llama" in m.id.lower() and "guard" not in m.id.lower()), models_list[0].id)
+SELECTED_MODEL = next((m.id for m in models_list if "llama" in m.id.lower() and "whisper" not in m.id.lower() and "guard" not in m.id.lower()), "llama-3.3-70b-versatile")
 
 # Fonction d'envoi vers Notion
 def add_to_notion(title, content):
