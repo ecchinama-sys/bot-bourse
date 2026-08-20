@@ -18,13 +18,13 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Initialise le bot avec le clavier permanent."""
+    """Initialise le bot et force l'affichage du clavier permanent."""
     keyboard = [["📈 Lancer le Flash Marché"]]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, is_persistent=True)
     await update.message.reply_text(
         "🤖 **Boursorama One - Assistant IA**\n"
         "Prêt pour ton analyse universelle.\n\n"
-        "💡 *Astuce :* Tu peux taper le nom d'un actif (ex: *Bitcoin, Nvidia, Or...*) pour une analyse sur mesure.", 
+        "💡 *Astuce :* Tu peux taper le nom de n'importe quel actif (ex: *Bitcoin, Nvidia, Or...*) pour une analyse sur mesure.", 
         reply_markup=reply_markup, 
         parse_mode="Markdown"
     )
@@ -45,11 +45,11 @@ async def flash_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         chat_completion = groq_client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
-            model="llama-3.1-70b-versatile", # Modèle parfaitement adapté et non bloquant
+            model="llama-3.1-70b-versatile",
         )
         report = chat_completion.choices[0].message.content
 
-        # Boutons interactifs
+        # Boutons interactifs (inline) sous le message
         keyboard = [
             [
                 InlineKeyboardButton("🪙 Bitcoin", callback_data="zoom_btc"),
@@ -80,7 +80,7 @@ async def flash_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"⚠️ Erreur technique IA :\n{str(e)}")
 
 async def analyze_specific_asset(update_or_query, context, asset_name, is_callback=True):
-    """Analyse un actif de manière structurée."""
+    """Analyse un actif spécifique de manière structurée."""
     if is_callback:
         query = update_or_query
         await query.answer()
@@ -119,6 +119,7 @@ async def analyze_specific_asset(update_or_query, context, asset_name, is_callba
         await target_message(text=f"⚠️ Erreur lors de l'analyse : {str(e)}")
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Gère les clics sur les boutons interactifs (inline)."""
     query = update.callback_query
     
     if query.data == "back_to_menu":
@@ -139,9 +140,10 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     selected_asset = asset_map.get(query.data)
     if selected_asset:
-        await analyze_specific_asset(query, context, selected_asset, is_callback=True)
+        await analyze_specific_asset(update_or_query=query, context=context, asset_name=selected_asset, is_callback=True)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Gère le bouton permanent et la saisie libre d'actifs."""
     text = update.message.text
     
     if text == "📈 Lancer le Flash Marché":
@@ -150,7 +152,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not groq_client:
             await update.message.reply_text("⚠️ Erreur : Clé GROQ_API_KEY non trouvée.")
             return
-        await analyze_specific_asset(update.message, context, text, is_callback=False)
+        await analyze_specific_asset(update_or_query=update.message, context=context, asset_name=text, is_callback=False)
 
 def main():
     if not TELEGRAM_TOKEN:
