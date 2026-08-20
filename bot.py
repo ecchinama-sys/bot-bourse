@@ -10,7 +10,7 @@ TELEGRAM_CHAT_ID = "6736922134"
 NOTION_API_KEY = "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"
 NOTION_DATABASE_ID = "https://app.notion.com/p/3c2ff48f1aed803db912e3f32650c7a5?v=3c2ff48f1aed80499920000c65daf439&source=copy_link"
 
-# Initialisation directe et propre du client avec un modèle textuel stable
+# Initialisation directe du client Groq avec un modèle textuel stable
 client = Groq(api_key=GROQ_API_KEY)
 SELECTED_MODEL = "llama-3.1-70b-versatile"
 
@@ -70,49 +70,20 @@ def generer_analyse():
     return str(completion.choices[0].message.content)
 
 def envoyer_telegram(message):
-    """Envoie le message sur Telegram avec les boutons interactifs en bas."""
+    """Envoie le message sur Telegram."""
     titre = f"Flash Finance & Bourse - {datetime.now().strftime('%d/%m/%Y')}"
     url_telegram = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
         "text": f"📈 *{titre}*\n\n{message}",
-        "parse_mode": "Markdown",
-        "reply_markup": {
-            "inline_keyboard": [
-                [
-                    {
-                        "text": "🔄 Régénérer un autre article",
-                        "callback_data": "regen"
-                    }
-                ],
-                [
-                    {
-                        "text": "🚀 /start (Redémarrer / Actualiser)",
-                        "callback_data": "start_bot"
-                    }
-                ]
-            ]
-        }
+        "parse_mode": "Markdown"
     }
     requests.post(url_telegram, json=payload)
 
-def tache_flash_bourse():
-    """Fonction principale gérant la vérification des clics et le cycle d'exécution."""
+def main():
+    """Fonction principale du script exécutée par GitHub Actions."""
     print("\n🚀 Lancement de l'analyse boursière...")
-    
-    # Vérification des interactions de clic sur Telegram
-    try:
-        updates = requests.get(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates").json()
-        if "result" in updates:
-            for u in updates["result"]:
-                if "callback_query" in u:
-                    callback_data = u["callback_query"]["data"]
-                    if callback_data in ["regen", "start_bot"]:
-                        print("🔄 Action interactive détectée depuis Telegram...")
-                        requests.get(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates?offset={u['update_id'] + 1}")
-    except Exception as e:
-        print(f"Info lors de la vérification des updates : {e}")
 
     # Génération du contenu via l'IA
     message_ia = generer_analyse()
@@ -130,7 +101,7 @@ def tache_flash_bourse():
 
     # Envoi Telegram
     envoyer_telegram(message_ia)
-    print("✅ Message et boutons interactifs envoyés sur Telegram !")
+    print("✅ Message envoyé sur Telegram avec succès !")
 
 if __name__ == "__main__":
-    tache_flash_bourse()
+    main()
