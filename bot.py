@@ -1,5 +1,6 @@
 import os
 import time
+import random
 import requests
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -39,15 +40,26 @@ def recuperer_actualites_marches():
         return "Marchés mondiaux en phase d'observation, surveillez les tendances macroéconomiques du jour."
 
 def generer_analyse_financiere():
-    """Génère l'analyse boursière via l'IA Groq en mode RAG (basé sur les actus du jour)"""
+    """Génère l'analyse boursière via l'IA Groq en mode RAG avec de la variété"""
     print("📰 Récupération des actualités du marché...")
     actus_du_jour = recuperer_actualites_marches()
+    
+    # Angles aléatoires pour varier les formulations et l'angle d'attaque à chaque régénération
+    angles = [
+        "Concentre-toi en priorité sur l'impact macroéconomique global.",
+        "Mets l'accent sur la psychologie des investisseurs et la volatilité.",
+        "Aborde le marché sous un angle dynamique axé sur les opportunités court terme.",
+        "Mets en avant les signaux de tendance et la prudence."
+    ]
+    angle_choisi = random.choice(angles)
     
     prompt = f"""
     Voici les dernières actualités et titres de marché du jour :
     {actus_du_jour}
     
-    En te basant strictement sur ces faits ou sur le contexte général de ces actualités, rédige un flash d'analyse financière court, percutant et dynamique avec des emojis (📈, 📉, 💡, 💰, 🚀). Ne fais pas de référence directe aux liens ou aux sources, donne juste l'analyse pro et directe.
+    Consigne spécifique pour cette analyse : {angle_choisi}
+    
+    En te basant sur ces actualités, rédige un flash d'analyse financière court, percutant et dynamique avec des emojis (📈, 📉, 💡, 💰, 🚀). Ne fais pas de référence directe aux liens ou aux sources, donne juste l'analyse pro et directe.
     """
     
     chat_completion = client.chat.completions.create(
@@ -55,6 +67,7 @@ def generer_analyse_financiere():
             {"role": "user", "content": prompt}
         ],
         model="openai/gpt-oss-120b",
+        temperature=0.9, # Augmente la créativité pour éviter les doublons à l'identique
     )
     return chat_completion.choices[0].message.content
 
@@ -70,7 +83,7 @@ def enregistrer_sur_notion(analyse):
         "parent": {"database_id": NOTION_DATABASE_ID},
         "properties": {
             "Titre": {
-                "title": [{"text": {"content": "Flash Boursier Automatique (RAG)"}}]
+                "title": [{"text": {"content": "Flash Boursier Automatique (RAG varié)"}}]
             }
         },
         "children": [
