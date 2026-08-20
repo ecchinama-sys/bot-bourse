@@ -18,8 +18,8 @@ def generer_analyse_financiere():
     prompt = (
         "Rédige un flash d'analyse financière court, percutant et dynamique "
         "sur les marchés du jour avec les tendances clés. "
-        "Utilise des emojis pertinents (📈, 📉, 💡, 💰, 🚀, ⚡) au début de chaque ligne ou section "
-        "pour rendre le message très visuel, facile à lire et professionnel."
+        "Utilise des emojis pertinents (📈, 📉, 💡, 💰, 🚀, ⚡) au début de chaque ligne ou section. "
+        "IMPORTANT : n'utilise aucun caractère de formatage Markdown comme des astérisques (*) ou des tirets bas (_)."
     )
     
     chat_completion = client.chat.completions.create(
