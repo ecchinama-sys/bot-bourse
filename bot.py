@@ -19,31 +19,13 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 def clean_text_for_telegram(text):
-    """Nettoie le texte pour éviter les erreurs de balises Markdown."""
+    """Nettoie le texte pour éviter les dièses et les astérisques."""
     if not text:
         return ""
-    # Retire les dièses de titres
     text = re.sub(r'^[#]+\s*', '', text, flags=re.MULTILINE)
     text = text.replace('#', '')
+    text = text.replace('*', '')
     return text
-
-async def send_long_message(target_func, text, reply_markup=None):
-    """Découpe et envoie un message s'il dépasse la limite Telegram (4096 caractères)."""
-    max_length = 4000
-    if len(text) <= max_length:
-        await target_func(text=text, reply_markup=reply_markup)
-        return
-
-    # Découpage par morceaux propres
-    chunks = [text[i:i+max_length] for i in range(0, len(text), max_length)]
-    for index, chunk in enumerate(chunks):
-        # On n'attache les boutons qu'au dernier message
-        markup = reply_markup if index == len(chunks) - 1 else None
-        if index == 0:
-            await target_func(text=chunk, reply_markup=markup)
-        else:
-            # Pour les messages suivants, on utilise context.bot.send_message si c'est un objet query ou message
-            pass
 
 def get_menu_keyboard():
     """Génère le menu principal avec l'unique bouton pour lancer le flash."""
@@ -81,11 +63,11 @@ async def flash_analysis(update_or_query, context, is_callback=True):
             "les cryptomonnaies majeures, les indices boursiers (USA, Europe), les actions technologiques phares, "
             "les matières premières (or, pétrole) et le forex.\n"
             "Règles strictes :\n"
-            "- N'utilise JAMAIS les symboles dièse (#).\n"
+            "- N'utilise JAMAIS les symboles dièse (#) ni les astérisques (*).\n"
             "- N'utilise PAS de tableaux (| |).\n"
             "- Utilise des emojis.\n"
             "- Pour chaque grande catégorie, donne une indication claire : [Posture : ACHAT / VENTE / NEUTRE].\n"
-            "- Termine par une section 'RÉSUMÉ STRATÉGIQUE GLOBAL'."
+            "- Termine par une section RÉSUMÉ STRATÉGIQUE GLOBAL."
         )
         
         chat_completion = groq_client.chat.completions.create(
@@ -99,7 +81,6 @@ async def flash_analysis(update_or_query, context, is_callback=True):
 
         full_text = f"📊 FLASH MONDIAL DE TOUS LES MARCHÉS\n\n{report}"
         
-        # Envoi sécurisé avec gestion de la longueur (sans parse_mode pour éliminer les erreurs de syntaxe)
         if len(full_text) > 4000:
             full_text = full_text[:3950] + "\n\n...(Rapport tronqué pour optimiser l'affichage)"
 
@@ -122,7 +103,7 @@ async def analyze_specific_asset(update_or_query, context, asset_name, is_callba
     try:
         prompt = (
             f"Analyse l'actif ou le marché : {asset_name}.\n"
-            "Rédige une réponse aérée, sans dièse (#) ni tableaux.\n"
+            "Rédige une réponse aérée, sans dièse (#) ni astérisques (*), ni tableaux.\n"
             "Commence par : 'Posture : [ACHAT / VENTE / NEUTRE]'\n"
             "Puis détaille la tendance, les niveaux clés et les risques."
         )
