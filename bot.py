@@ -1,23 +1,23 @@
-import os
 import random
 import requests
 from datetime import datetime
 from groq import Groq
 
-# --- TES CLES API ---
-GROQ_API_KEY = "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"
-TELEGRAM_BOT_TOKEN = "8820955818:AAGtMB-LwbJSw7CS8uYWIMVVLkT-Lvkkd-s"
-TELEGRAM_CHAT_ID = "6736922134"
+# --- TES CLES API (À remplir avec tes propres clés) ---
+GROQ_API_KEY = "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"          
+TELEGRAM_BOT_TOKEN = "8820955818:AAGtMB-LwbJSw7CS8uYWIMVVLkT-Lvkkd-s"  
+TELEGRAM_CHAT_ID = "6736922134"      
 NOTION_API_KEY = "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"
 NOTION_DATABASE_ID = "https://app.notion.com/p/3c2ff48f1aed803db912e3f32650c7a5?v=3c2ff48f1aed80499920000c65daf439&source=copy_link"
 
-# Initialisation Groq avec un vrai modèle Llama stable et direct
+# Initialisation du client Groq avec le modèle Llama stable
 client = Groq(api_key=GROQ_API_KEY)
 SELECTED_MODEL = "llama-3.3-70b-versatile"
 
-# Fonction d'envoi vers Notion
 def add_to_notion(title, content):
+    """Enregistre l'article et l'analyse dans Notion avec le titre et la date du jour."""
     url = "https://api.notion.com/v1/pages"
+    date_iso = datetime.now().strftime("%Y-%m-%d")
     headers = {
         "Authorization": f"Bearer {NOTION_API_KEY}",
         "Content-Type": "application/json",
@@ -25,60 +25,104 @@ def add_to_notion(title, content):
     }
     data = {
         "parent": {"database_id": NOTION_DATABASE_ID},
-        "properties": {"Name": {"title": [{"text": {"content": title}}]}},
-        "children": [{"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": content[:2000]}}]}}]
+        "properties": {
+            "Name": {"title": [{"text": {"content": title}}]},
+            "Date": {"date": {"start": date_iso}}
+        },
+        "children": [
+            {
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": {
+                    "rich_text": [{"type": "text", "text": {"content": content[:2000]}}]
+                }
+            }
+        ]
     }
     response = requests.post(url, headers=headers, json=data)
     return response.status_code
 
-# Fonction principale de génération du flash de minuit
-def tache_flash_bourse():
-    print("\n🌙 Minuit : Lancement de la génération automatique du flash boursier...")
-    
-    angles_possibles = [
+def generer_analyse():
+    """Génère l'actualité boursière avec les faits au début et l'analyse d'expert à la fin."""
+    angles = [
         "Focus sur la tech, les valeurs de croissance et l'intelligence artificielle sur les marchés.",
         "Focus sur l'inflation, les décisions des banques centrales (FED, BCE) et les taux d'intérêt.",
         "Focus sur les matières premières (pétrole, or) et les mouvements géopolitiques mondiaux.",
         "Focus sur les résultats d'entreprises, les actions en forte hausse/baisse et les conseils de rotation sectorielle."
     ]
-    angle_du_jour = random.choice(angles_possibles)
     
-    prompt = f"Tu es un analyste financier senior. Rédige un flash d'actualité boursière percutant et diversifié. Angle prioritaire pour cette édition : {angle_du_jour}. Format attendu : 1. Tendance & Contexte Général, 2. Actualités & Thématiques Clés, 3. Le Regard de l'Expert. Style : Professionnel, direct, percutant et lisible sur mobile."
+    angle_choisi = random.choice(angles)
     
-    # Génération IA avec le modèle stable
+    prompt = (
+        f"Tu es un expert analyste financier renommé. Rédige un flash boursier et financier complet "
+        f"en suivant STRICTEMENT cet ordre dans la structure :\n"
+        f"1. Les faits marquants et l'actualité des marchés (ce qui s'est passé).\n"
+        f"2. Les indicateurs clés et les chiffres importants à retenir.\n"
+        f"3. Ton analyse d'expert et ton avis tranché (cette partie doit OBLIGATOIREMENT se trouver à la toute fin du texte).\n"
+        f"Angle prioritaire pour cette édition : {angle_choisi}. "
+        f"Ton style doit être professionnel, direct, percutant et orienté investisseur."
+    )
+    
     completion = client.chat.completions.create(
         model=SELECTED_MODEL,
         messages=[{"role": "user", "content": prompt}]
     )
-    message_ia = str(completion.choices[0].message.content)
+    return str(completion.choices[0].message.content)
 
-    # Enregistrement et Envoi
-    date_du_jour = datetime.now().strftime("%d/%m/%Y")
-    titre_page = f"Flash Bourse & Actu - {date_du_jour}"
-    status_notion = add_to_notion(titre_page, message_ia)
-
+def envoyer_telegram(message):
+    """Envoie le message sur Telegram avec le bouton interactif en bas."""
+    titre = f"Flash Finance & Bourse - {datetime.now().strftime('%d/%m/%Y')}"
     url_telegram = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
-        "text": f"🌙 *Flash Automatique de Minuit*\n\n🗞️ *{titre_page}*\n\n{message_ia}",
+        "text": f"📈 *{titre}*\n\n{message}",
         "parse_mode": "Markdown",
         "reply_markup": {
             "inline_keyboard": [
                 [
                     {
-                        "text": "🔄 Générer un autre angle",
-                        "callback_data": "autre_angle"
+                        "text": "🔄 Générer une nouvelle analyse",
+                        "callback_data": "regen"
                     }
                 ]
             ]
         }
     }
-    res_tg = requests.post(url_telegram, json=payload)
+    requests.post(url_telegram, json=payload)
 
-    if status_notion == 200 and res_tg.status_code == 200:
-        print(f"✅ Flash de minuit envoyé avec succès sur Notion et Telegram !")
+def main():
+    """Fonction principale gérant la vérification des clics et le cycle d'exécution."""
+    print("\n🚀 Lancement du script de flash boursier...")
+    
+    # Vérification optionnelle des interactions de clic sur Telegram
+    try:
+        updates = requests.get(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates").json()
+        if "result" in updates:
+            for u in updates["result"]:
+                if "callback_query" in u and u["callback_query"]["data"] == "regen":
+                    print("🔄 Clic détecté sur le bouton Telegram : Génération d'une nouvelle variante...")
+                    requests.get(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates?offset={u['update_id'] + 1}")
+    except Exception as e:
+        print(f"Info (ignorée) lors de la vérification des updates : {e}")
+
+    # Génération du contenu via l'IA
+    message_ia = generer_analyse()
+    
+    # Création du titre avec la date du jour
+    date_du_jour = datetime.now().strftime("%d/%m/%Y")
+    titre_page = f"Flash Finance & Bourse - {date_du_jour}"
+    
+    # Enregistrement Notion
+    status_notion = add_to_notion(titre_page, message_ia)
+    if status_notion == 200:
+        print("✅ Données enregistrées dans Notion avec succès (titre, contenu et date).")
     else:
-        print(f"⚠️ Erreur lors de l'envoi automatique.")
+        print(f"⚠️ Erreur lors de l'enregistrement Notion (Code : {status_notion})")
 
-# Exécution du script
-tache_flash_bourse()
+    # Envoi Telegram
+    envoyer_telegram(message_ia)
+    print("✅ Message et bouton interactif envoyés sur Telegram !")
+
+if __name__ == "__main__":
+    main()
