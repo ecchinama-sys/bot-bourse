@@ -1,5 +1,6 @@
 import os
 import logging
+import re
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from groq import Groq
@@ -17,6 +18,16 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 # Initialisation Groq
 groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
+def clean_text_for_telegram(text):
+    """Supprime les symboles de titres Markdown (#) pour un affichage propre."""
+    if not text:
+        return ""
+    # Retire les dièses de titres en début de ligne (ex: ### Titre -> Titre)
+    text = re.sub(r'^[#]+\s*', '', text, flags=re.MULTILINE)
+    # Retire les dièses au milieu si l'IA en met
+    text = text.replace('#', '')
+    return text
+
 def get_menu_keyboard():
     """Génère le menu principal avec l'unique bouton pour lancer le flash."""
     return InlineKeyboardMarkup([
@@ -26,7 +37,7 @@ def get_menu_keyboard():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Initialise le bot et affiche l'accueil."""
     await update.message.reply_text(
-        "🤖 **Boursorama One - Assistant IA**\n"
+        "🤖 *Boursorama One - Assistant IA*\n"
         "Prêt pour ton analyse universelle.\n\n"
         "💡 *Astuce :* Clique sur le bouton ci-dessous pour générer ton flash complet, ou tape directement le nom de n'importe quel actif pour une recherche ciblée.", 
         reply_markup=get_menu_keyboard(),
@@ -34,7 +45,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def flash_analysis(update_or_query, context, is_callback=True):
-    """Génère un flash complet, aéré et lisible avec résumé et orientation claire à la fin."""
+    """Génère un flash complet, aéré, sans dièses, avec résumé et orientation claire."""
     if is_callback:
         query = update_or_query
         await query.answer()
@@ -53,23 +64,23 @@ async def flash_analysis(update_or_query, context, is_callback=True):
             "Rédige un flash boursier et macroéconomique complet et aéré pour ces actifs : "
             "Bitcoin, Ethereum, S&P 500, CAC 40, Tesla, Apple, Nvidia, Or. "
             "Règles de mise en forme strictes :\n"
-            "- N'utilise PAS de tableaux Markdown (| |), fais des paragraphes aérés.\n"
+            "- N'utilise JAMAIS les symboles dièse (#) ou de titres Markdown.\n"
+            "- N'utilise PAS de tableaux Markdown (| |), fais uniquement des paragraphes aérés.\n"
             "- Utilise des emojis pour chaque actif.\n"
             "- Pour chaque actif, donne une indication claire : [Posture : ACHAT / VENTE / NEUTRE].\n"
-            "- Termine obligatoirement par une section '📋 **RÉSUMÉ STRATÉGIQUE GLOBAL**' qui résume s'il faut privilégier les achats ou la prudence sur la période."
+            "- Termine obligatoirement par une section 'RÉSUMÉ STRATÉGIQUE GLOBAL' qui résume s'il faut privilégier les achats ou la prudence sur la période."
         )
         
         chat_completion = groq_client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
             model="openai/gpt-oss-120b",
         )
-        report = chat_completion.choices[0].message.content
+        report = clean_text_for_telegram(chat_completion.choices[0].message.content)
 
-        # Bouton unique pour relancer un flash ou revenir au menu
         keyboard = [[InlineKeyboardButton("🔄 Relancer un Flash", callback_data="launch_flash")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        full_text = f"📊 **FLASH MARCHÉS & ORIENTATIONS**\n\n{report}"
+        full_text = f"📊 *FLASH MARCHÉS & ORIENTATIONS*\n\n{report}"
         
         if len(full_text) > 4000:
             full_text = full_text[:3900] + "\n\n...(Rapport ajusté pour affichage)"
@@ -93,8 +104,8 @@ async def analyze_specific_asset(update_or_query, context, asset_name, is_callba
     try:
         prompt = (
             f"Analyse l'actif : {asset_name}.\n"
-            "Rédige une réponse aérée, sans tableaux, avec des sauts de ligne.\n"
-            "Commence par : '📌 **Posture : [ACHAT / VENTE / NEUTRE]**'\n"
+            "Rédige une réponse aérée, sans dièse (#) ni tableaux.\n"
+            "Commence par : 'Posture : [ACHAT / VENTE / NEUTRE]'\n"
             "Puis détaille la tendance, les niveaux clés et les risques."
         )
 
@@ -102,12 +113,12 @@ async def analyze_specific_asset(update_or_query, context, asset_name, is_callba
             messages=[{"role": "user", "content": prompt}],
             model="openai/gpt-oss-120b",
         )
-        detail_report = chat_completion.choices[0].message.content
+        detail_report = clean_text_for_telegram(chat_completion.choices[0].message.content)
 
         keyboard = [[InlineKeyboardButton("🏠 Menu Principal", callback_data="back_to_menu")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        full_text = f"🎯 **ANALYSE : {asset_name.upper()}**\n\n{detail_report}"
+        full_text = f"🎯 *ANALYSE : {asset_name.upper()}*\n\n{detail_report}"
         
         if len(full_text) > 4000:
             full_text = full_text[:3900] + "\n\n...(Ajusté pour affichage)"
@@ -125,7 +136,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "back_to_menu":
         await query.answer()
         await query.edit_message_text(
-            text="🤖 **Boursorama One - Assistant IA**\n\nClique ci-dessous pour lancer ton flash complet :",
+            text="🤖 *Boursorama One - Assistant IA*\n\nClique ci-dessous pour lancer ton flash complet :",
             reply_markup=get_menu_keyboard(),
             parse_mode="Markdown"
         )
