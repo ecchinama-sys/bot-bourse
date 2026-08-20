@@ -33,24 +33,36 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
 
+async def send_long_message(target_func, text, reply_markup=None, parse_mode="Markdown"):
+    """Découpe automatiquement les messages trop longs pour éviter l'erreur Telegram."""
+    if len(text) <= 4000:
+        await target_func(text=text, reply_markup=reply_markup, parse_mode=parse_mode)
+    else:
+        # Découpage par blocs de 4000 caractères
+        parts = [text[i:i+4000] for i in range(0, len(text), 4000)]
+        for index, part in enumerate(parts):
+            # On n'attache le clavier/boutons qu'au tout dernier message
+            markup = reply_markup if index == len(parts) - 1 else None
+            await target_func(text=part, reply_markup=markup, parse_mode=parse_mode)
+
 async def flash_analysis(update_or_query, context, is_callback=True):
     """Génère le flash global multi-marchés."""
     if is_callback:
         query = update_or_query
         await query.answer()
         await query.edit_message_text(text="🔍 Analyse globale multi-marchés en cours...")
-        target_message = query.edit_message_text
+        target_func = query.edit_message_text
     else:
         sent_msg = await update_or_query.reply_text("🔍 Analyse globale multi-marchés en cours...")
-        target_message = sent_msg.edit_text
+        target_func = sent_msg.edit_text
 
     if not groq_client:
-        await target_message(text="⚠️ Erreur : Clé GROQ_API_KEY non trouvée.", reply_markup=get_menu_keyboard())
+        await target_func(text="⚠️ Erreur : Clé GROQ_API_KEY non trouvée.", reply_markup=get_menu_keyboard())
         return
 
     try:
         prompt = (
-            "Donne une vue d'ensemble macroéconomique rapide et concise des tendances actuelles "
+            "Donne une vue d'ensemble macroéconomique rapide, claire et concise des tendances actuelles "
             "pour ces actifs : Bitcoin, S&P 500, CAC 40, Tesla, Apple, Ethereum, Or, Nvidia."
         )
         
@@ -60,7 +72,7 @@ async def flash_analysis(update_or_query, context, is_callback=True):
         )
         report = chat_completion.choices[0].message.content
 
-        # Boutons de zoom et bouton de retour au menu
+        # Boutons de zoom et de retour au menu
         keyboard = [
             [
                 InlineKeyboardButton("🪙 Bitcoin", callback_data="zoom_btc"),
@@ -84,14 +96,11 @@ async def flash_analysis(update_or_query, context, is_callback=True):
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        await target_message(
-            text=f"📊 **FLASH MARCHÉS GLOBAL**\n\n{report}\n\n*Clique sur un actif pour un zoom détaillé :*",
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
-        )
+        full_text = f"📊 **FLASH MARCHÉS GLOBAL**\n\n{report}\n\n*Clique sur un actif pour un zoom détaillé :*"
+        await send_long_message(target_func, full_text, reply_markup=reply_markup)
 
     except Exception as e:
-        await target_message(text=f"⚠️ Erreur technique IA :\n{str(e)}", reply_markup=get_menu_keyboard())
+        await target_func(text=f"⚠️ Erreur technique IA :\n{str(e)}", reply_markup=get_menu_keyboard())
 
 async def analyze_specific_asset(update_or_query, context, asset_name, is_callback=True):
     """Analyse un actif spécifique de manière structurée."""
@@ -99,14 +108,14 @@ async def analyze_specific_asset(update_or_query, context, asset_name, is_callba
         query = update_or_query
         await query.answer()
         await query.edit_message_text(text=f"🔍 Analyse de {asset_name} en cours...")
-        target_message = query.edit_message_text
+        target_func = query.edit_message_text
     else:
         sent_msg = await update_or_query.reply_text(f"🔍 Analyse de {asset_name} en cours...")
-        target_message = sent_msg.edit_text
+        target_func = sent_msg.edit_text
 
     try:
         prompt = (
-            f"Fais un point d'analyse de marché pour l'actif : {asset_name}. "
+            f"Fais un point d'analyse de marché détaillé pour l'actif : {asset_name}. "
             "Donne la tendance générale, les zones de prix importantes et un rappel de gestion prudent."
         )
 
@@ -122,17 +131,11 @@ async def analyze_specific_asset(update_or_query, context, asset_name, is_callba
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        if len(detail_report) > 4000:
-            detail_report = detail_report[:4000] + "\n\n...(coupé car trop long)"
-
-        await target_message(
-            text=f"🎯 **ANALYSE : {asset_name.upper()}**\n\n{detail_report}",
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
-        )
+        full_text = f"🎯 **ANALYSE : {asset_name.upper()}**\n\n{detail_report}"
+        await send_long_message(target_func, full_text, reply_markup=reply_markup)
 
     except Exception as e:
-        await target_message(text=f"⚠️ Erreur lors de l'analyse : {str(e)}", reply_markup=get_menu_keyboard())
+        await target_func(text=f"⚠️ Erreur lors de l'analyse : {str(e)}", reply_markup=get_menu_keyboard())
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gère l'ensemble des clics sur les boutons interactifs."""
