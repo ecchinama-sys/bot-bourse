@@ -1,7 +1,6 @@
 import os
 import logging
 from datetime import datetime
-import requests
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 from groq import Groq
@@ -30,8 +29,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def flash_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Analyse dynamique via IA avec remontée d'erreurs précise."""
-    await update.message.reply_text("🔍 Analyse en cours...")
+    """Analyse dynamique via Groq avec le modèle stable Mixtral."""
+    await update.message.reply_text("🔍 Analyse en cours par l'IA...")
     
     if not groq_client:
         await update.message.reply_text("⚠️ Erreur : Clé GROQ_API_KEY non trouvée sur le serveur.")
@@ -47,7 +46,7 @@ async def flash_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         chat_completion = groq_client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
-            model="llama-3.3-70b-versatile",
+            model="mixtral-8x7b-32768", # Modèle extrêmement stable sur Groq
         )
         report = chat_completion.choices[0].message.content
         await update.message.reply_text(report, parse_mode="Markdown")
@@ -70,7 +69,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    print("Le bot est en ligne.")
+    print("Le bot est en ligne avec Groq.")
     app.run_polling()
 
 if __name__ == '__main__':
