@@ -29,7 +29,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def flash_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Analyse dynamique via Groq avec le modèle stable Mixtral."""
+    """Analyse dynamique via Groq avec le modèle actuel."""
     await update.message.reply_text("🔍 Analyse en cours par l'IA...")
     
     if not groq_client:
@@ -46,7 +46,7 @@ async def flash_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         chat_completion = groq_client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
-            model="mixtral-8x7b-32768", # Modèle extrêmement stable sur Groq
+            model="openai/gpt-oss-120b", # Modèle actif et performant sur l'infrastructure Groq
         )
         report = chat_completion.choices[0].message.content
         await update.message.reply_text(report, parse_mode="Markdown")
