@@ -15,7 +15,12 @@ client = Groq(api_key=GROQ_API_KEY)
 
 def generer_analyse_financiere():
     """Génère l'analyse boursière via l'IA Groq"""
-    prompt = "Rédige un flash d'analyse financière court et percutant sur les marchés du jour avec les tendances clés."
+    prompt = (
+        "Rédige un flash d'analyse financière court, percutant et dynamique "
+        "sur les marchés du jour avec les tendances clés. "
+        "Utilise des emojis pertinents (📈, 📉, 💡, 💰, 🚀, ⚡) au début de chaque ligne ou section "
+        "pour rendre le message très visuel, facile à lire et professionnel."
+    )
     
     chat_completion = client.chat.completions.create(
         messages=[
