@@ -1,6 +1,6 @@
 import os
 import logging
-from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton, BotCommand
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from groq import Groq
 
@@ -17,9 +17,16 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 # Initialisation Groq
 groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-# Clavier permanent en bas de l'écran
 def get_main_keyboard():
+    """Génère le clavier permanent en bas de l'écran."""
     return ReplyKeyboardMarkup([["📈 Lancer le Flash Marché"]], resize_keyboard=True, is_persistent=True)
+
+async def post_init(application):
+    """Enregistre les commandes du bot pour forcer l'apparition du menu/boutons dans l'UI Telegram."""
+    await application.bot.set_my_commands([
+        BotCommand("start", "Démarrer l'assistant et afficher le menu"),
+        BotCommand("flash", "Lancer le Flash Marché global")
+    ])
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Initialise le bot et affiche le clavier permanent."""
@@ -51,7 +58,7 @@ async def flash_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         report = chat_completion.choices[0].message.content
 
-        # Boutons interactifs (inline) sous le message
+        # Boutons interactifs (inline) sous le message de rapport
         keyboard = [
             [
                 InlineKeyboardButton("🪙 Bitcoin", callback_data="zoom_btc"),
@@ -77,8 +84,7 @@ async def flash_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=reply_markup,
             parse_mode="Markdown"
         )
-        # On s'assure de renvoyer un message avec le clavier permanent pour qu'il reste affiché
-        await update.message.reply_text("📌 Utilise le bouton ci-dessous pour relancer un flash ou tape un actif :", reply_markup=get_main_keyboard())
+        await update.message.reply_text("👇 Utilise le bouton permanent ci-dessous pour relancer :", reply_markup=get_main_keyboard())
 
     except Exception as e:
         await update.message.reply_text(f"⚠️ Erreur technique IA :\n{str(e)}", reply_markup=get_main_keyboard())
@@ -118,7 +124,6 @@ async def analyze_specific_asset(update_or_query, context, asset_name, is_callba
             parse_mode="Markdown"
         )
         
-        # Si c'était une recherche libre par texte, on renvoie un petit message pour ramener le clavier en bas
         if not is_callback and update_obj:
             await update_obj.reply_text("👇 Ton menu permanent :", reply_markup=get_main_keyboard())
 
@@ -164,11 +169,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     if not TELEGRAM_TOKEN:
-        print("Erreur : TELETOKEN manquant")
+        print("Erreur : TELEGRAM_TOKEN manquant")
         return
 
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
+    
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("flash", flash_analysis))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(CallbackQueryHandler(button_callback))
 
