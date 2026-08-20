@@ -24,33 +24,32 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🤖 **Boursorama One - Assistant IA**\n"
         "Prêt pour ton analyse universelle.\n\n"
-        "💡 *Astuce :* Tu peux aussi taper directement le nom de n'importe quel actif (ex: *Ethereum, Nvidia, Or, TotalEnergies...*) dans le chat pour que je l'analyse !", 
+        "💡 *Astuce :* Tu peux taper le nom d'un actif (ex: *Bitcoin, Nvidia, Or...*) pour une analyse sur mesure.", 
         reply_markup=reply_markup, 
         parse_mode="Markdown"
     )
 
 async def flash_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Génère le flash global avec des boutons de zoom interactifs."""
+    """Génère le flash global multi-marchés."""
     await update.message.reply_text("🔍 Analyse globale multi-marchés en cours...")
     
     if not groq_client:
-        await update.message.reply_text("⚠️ Erreur : Clé GROQ_API_KEY non trouvée sur le serveur.")
+        await update.message.reply_text("⚠️ Erreur : Clé GROQ_API_KEY non trouvée.")
         return
 
     try:
         prompt = (
-            "Fais un résumé ultra-bref de la tendance globale pour : "
-            "Bitcoin, S&P 500, CAC 40, Tesla, Apple, Ethereum, Or, Nvidia. "
-            "Donne une vue d'ensemble rapide."
+            "En tant qu'assistant de synthèse macroéconomique, donne un résumé court des tendances "
+            "pour : Bitcoin, S&P 500, CAC 40, Tesla, Apple, Ethereum, Or, Nvidia."
         )
         
         chat_completion = groq_client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
-            model="openai/gpt-oss-120b",
+            model="llama-3.1-70b-versatile", # Modèle parfaitement adapté et non bloquant
         )
         report = chat_completion.choices[0].message.content
 
-        # Boutons interactifs élargis
+        # Boutons interactifs
         keyboard = [
             [
                 InlineKeyboardButton("🪙 Bitcoin", callback_data="zoom_btc"),
@@ -66,50 +65,49 @@ async def flash_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ],
             [
                 InlineKeyboardButton("💻 Nvidia", callback_data="zoom_nvda"),
-                InlineKeyboardButton("🥇 Or (Gold)", callback_data="zoom_gold")
+                InlineKeyboardButton("🥇 Or", callback_data="zoom_gold")
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await update.message.reply_text(
-            f"📊 **FLASH MARCHÉS UNIVERSEL**\n\n{report}\n\n*Clique sur un actif ci-dessous ou tape son nom directement pour un zoom détaillé :*",
+            f"📊 **FLASH MARCHÉS GLOBAL**\n\n{report}\n\n*Clique sur un actif pour un zoom détaillé :*",
             reply_markup=reply_markup,
             parse_mode="Markdown"
         )
 
     except Exception as e:
-        error_msg = f"⚠️ Erreur technique IA :\n{str(e)}"
-        logging.error(error_msg)
-        await update.message.reply_text(error_msg)
+        await update.message.reply_text(f"⚠️ Erreur technique IA :\n{str(e)}")
 
 async def analyze_specific_asset(update_or_query, context, asset_name, is_callback=True):
-    """Fonction générique pour analyser n'importe quel actif demandé (bouton ou texte libre)."""
-    
+    """Analyse un actif de manière structurée."""
     if is_callback:
         query = update_or_query
         await query.answer()
-        await query.edit_message_text(text=f"🔍 Analyse approfondie de {asset_name} en cours...")
+        await query.edit_message_text(text=f"🔍 Analyse de {asset_name} en cours...")
         target_message = query.edit_message_text
     else:
-        message = update_or_query
-        sent_msg = await message.reply_text(f"🔍 Analyse sur mesure de {asset_name} en cours...")
+        sent_msg = await update_or_query.reply_text(f"🔍 Analyse de {asset_name} en cours...")
         target_message = sent_msg.edit_text
 
     try:
         prompt = (
-            f"Agis en expert financier. Fais une analyse technique détaillée pour l'actif : {asset_name}. "
-            "Donne un signal clair ([ACHAT], [HOLD], [ATTENTE]), les niveaux clés (supports/résistances) "
-            "et une explication prudente. Rappelle de vérifier TradingView."
+            f"Analyse l'actif financier : {asset_name}. "
+            "Donne une perspective de marché, les niveaux clés et un avis de gestion prudent. "
+            "Rappelle de vérifier TradingView."
         )
 
         chat_completion = groq_client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
-            model="openai/gpt-oss-120b",
+            model="llama-3.1-70b-versatile",
         )
         detail_report = chat_completion.choices[0].message.content
 
         keyboard = [[InlineKeyboardButton("🔙 Retour au menu", callback_data="back_to_menu")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
+
+        if len(detail_report) > 4000:
+            detail_report = detail_report[:4000] + "\n\n...(coupé car trop long)"
 
         await target_message(
             text=f"🎯 **ANALYSE : {asset_name.upper()}**\n\n{detail_report}",
@@ -121,7 +119,6 @@ async def analyze_specific_asset(update_or_query, context, asset_name, is_callba
         await target_message(text=f"⚠️ Erreur lors de l'analyse : {str(e)}")
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Gère les clics sur les boutons interactifs."""
     query = update.callback_query
     
     if query.data == "back_to_menu":
@@ -150,7 +147,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text == "📈 Lancer le Flash Marché":
         await flash_analysis(update, context)
     else:
-        # Si tu écris n'importe quel autre mot/actif dans le chat, le bot l'interpréte comme une demande d'analyse !
         if not groq_client:
             await update.message.reply_text("⚠️ Erreur : Clé GROQ_API_KEY non trouvée.")
             return
