@@ -5,13 +5,13 @@ from datetime import datetime
 from groq import Groq
 
 # --- TES CLES API ---
-GROQ_API_KEY = "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"
-TELEGRAM_BOT_TOKEN = "8820955818:AAGtMB-LwbJSw7CS8uYWIMVVLkT-Lvkkd-s"
+GROQ_API_KEY = "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"
+TELEGRAM_BOT_TOKEN = "8820955818:AAGtMB-LwbJSw7CSBuYWIMVVlkT-Lvkkd-s"
 TELEGRAM_CHAT_ID = "6736922134"
-NOTION_API_KEY = "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"
+NOTION_API_KEY = "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"
 NOTION_DATABASE_ID = "https://app.notion.com/p/3c2ff48f1aed803db912e3f32650c7a5?v=3c2ff48f1aed80499920000c65daf439&source=copy_link"
 
-# Initialisation Groq et sélection automatique du modèle
+# Initialisation Groq et sélection automatique du modèle texte
 client = Groq(api_key=GROQ_API_KEY)
 models_list = client.models.list().data
 SELECTED_MODEL = next((m.id for m in models_list if "llama" in m.id.lower() and "whisper" not in m.id.lower() and "guard" not in m.id.lower()), "llama-3.3-70b-versatile")
@@ -32,7 +32,7 @@ def add_to_notion(title, content):
     response = requests.post(url, headers=headers, json=data)
     return response.status_code
 
-# Fonction principale de génération du flash de minuit
+# Fonction principale de génération
 def tache_flash_bourse():
     print("\n🌙 Minuit : Lancement de la génération automatique du flash boursier...")
     
@@ -44,40 +44,30 @@ def tache_flash_bourse():
     ]
     angle_du_jour = random.choice(angles_possibles)
     
-    prompt = f"""Tu es un analyste financier senior. Rédige un flash d'actualité boursière percutant et diversifié.
+    prompt = f"Tu es un analyste financier senior. Rédige un flash d'actualité boursière percutant et diversifié. Angle prioritaire : {angle_du_jour}. Format : 1. Tendance & Contexte, 2. Actualités & Thématiques Clés, 3. Le Regard de l'Expert."
     
-Angle prioritaire pour cette édition : {angle_du_jour}
-
-Format attendu :
-1. 📈 **Tendance & Contexte Général** : Bref état d'esprit des places financières (CAC40, Wall Street, tendances macro).
-2. 📰 **Actualités & Thématiques Clés** : 3 ou 4 actualités boursières ou économiques variées et distinctes.
-3. 💡 **Le Regard de l'Expert / À Surveiller** : Un indicateur ou un événement stratégique à suivre de près.
-
-Style : Professionnel, direct, percutant et lisible sur mobile."""
-
-    # Génération IA
-    completion = client.chat.completions.create(
-        model=SELECTED_MODEL,
-        messages=[{"role": "user", "content": prompt}]
-    )
+    completion = client.chat.completions.create(model=SELECTED_MODEL, messages=[{"role": "user", "content": prompt}])
     message_ia = str(completion.choices[0].message.content)
-    
-    # Enregistrement et Envoi
+
     date_du_jour = datetime.now().strftime("%d/%m/%Y")
     titre_page = f"Flash Bourse & Actu - {date_du_jour}"
     status_notion = add_to_notion(titre_page, message_ia)
-    
+
     url_telegram = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
-        "text": f"🌙 *Flash Automatique de Minuit*\n\n 🗞️ *{titre_page}*\n\n{message_ia}",
-        "parse_mode": "Markdown"
+        "text": f"🌙 *Flash Automatique de Minuit*\n\n🗞️ *{titre_page}*\n\n{message_ia}",
+        "parse_mode": "Markdown",
+        "reply_markup": {
+            "inline_keyboard": [[{"text": "🔄 Générer un autre angle", "callback_data": "autre_angle"}]]
+        }
     }
     res_tg = requests.post(url_telegram, json=payload)
-    
+
     if status_notion == 200 and res_tg.status_code == 200:
         print(f"✅ Flash de minuit envoyé avec succès sur Notion et Telegram !")
     else:
         print(f"⚠️ Erreur lors de l'envoi automatique.")
 
+# Exécution
 tache_flash_bourse()
