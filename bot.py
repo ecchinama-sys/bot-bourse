@@ -39,13 +39,13 @@ async def flash_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         prompt = (
-            "En tant qu'assistant de synthèse macroéconomique, donne un résumé court des tendances "
-            "pour : Bitcoin, S&P 500, CAC 40, Tesla, Apple, Ethereum, Or, Nvidia."
+            "Donne une vue d'ensemble macroéconomique rapide et concise des tendances actuelles "
+            "pour ces actifs : Bitcoin, S&P 500, CAC 40, Tesla, Apple, Ethereum, Or, Nvidia."
         )
         
         chat_completion = groq_client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
-            model="llama-3.1-70b-versatile",
+            model="openai/gpt-oss-120b",
         )
         report = chat_completion.choices[0].message.content
 
@@ -92,14 +92,13 @@ async def analyze_specific_asset(update_or_query, context, asset_name, is_callba
 
     try:
         prompt = (
-            f"Analyse l'actif financier : {asset_name}. "
-            "Donne une perspective de marché, les niveaux clés et un avis de gestion prudent. "
-            "Rappelle de vérifier TradingView."
+            f"Fais un point d'analyse de marché pour l'actif : {asset_name}. "
+            "Donne la tendance générale, les zones de prix importantes et un rappel de gestion prudent."
         )
 
         chat_completion = groq_client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
-            model="llama-3.1-70b-versatile",
+            model="openai/gpt-oss-120b",
         )
         detail_report = chat_completion.choices[0].message.content
 
