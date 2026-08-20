@@ -5,10 +5,10 @@ from datetime import datetime
 from groq import Groq
 
 # --- TES CLES API ---
-GROQ_API_KEY = "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"
-TELEGRAM_BOT_TOKEN = "8820955818:AAGtMB-LwbJSw7CSBuYWIMVVlkT-Lvkkd-s"
+GROQ_API_KEY = "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"
+TELEGRAM_BOT_TOKEN = "8820955818:AAGtMB-LwbJSw7CS8uYWIMVVLkT-Lvkkd-s"
 TELEGRAM_CHAT_ID = "6736922134"
-NOTION_API_KEY = "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"
+NOTION_API_KEY = "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"
 NOTION_DATABASE_ID = "https://app.notion.com/p/3c2ff48f1aed803db912e3f32650c7a5?v=3c2ff48f1aed80499920000c65daf439&source=copy_link"
 
 # Initialisation Groq et sélection automatique du modèle texte
