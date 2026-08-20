@@ -1,70 +1,79 @@
-import time
-import random
-import requests
-from datetime import datetime
-from groq import Groq
 import os
+import time
+import requests
+from groq import Groq
 
-# --- TES CLES API (Récupérées depuis les variables d'environnement de l'hébergeur) ---
-GROQ_API_KEY = "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"          
-TELEGRAM_BOT_TOKEN = "8820955818:AAGtMB-LwbJSw7CS8uYWIMVVLkT-Lvkkd-s"  
-TELEGRAM_CHAT_ID = "6736922134"      
-NOTION_API_KEY = "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"
-NOTION_DATABASE_ID = "https://app.notion.com/p/3c2ff48f1aed803db912e3f32650c7a5?v=3c2ff48f1aed80499920000c65daf439&source=copy_link"
+# Récupération des clés API depuis les variables d'environnement Railway
+GROQ_API_KEY = os.environ.get("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")
+TELEGRAM_BOT_TOKEN = os.environ.get("8820955818:AAGtMB-LwbJSw7CS8uYWIMVVLkT-Lvkkd-s")
+TELEGRAM_CHAT_ID = os.environ.get("6736922134")
+NOTION_API_KEY = os.environ.get("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")
+NOTION_DATABASE_ID = os.environ.get("https://app.notion.com/p/3c2ff48f1aed803db912e3f32650c7a5?v=3c2ff48f1aed80499920000c65daf439&source=copy_link")
 
 client = Groq(api_key=GROQ_API_KEY)
-SELECTED_MODEL = "llama-3.1-70b-versatile"
 
-def add_to_notion(title, content):
+def generer_analyse_financiere():
+    """Génère l'analyse boursière via l'IA Groq"""
+    prompt = "Rédige un flash d'analyse financière court et percutant sur les marchés du jour avec les tendances clés."
+    
+    chat_completion = client.chat.completions.create(
+        messages=[
+            {"role": "user", "content": prompt}
+        ],
+        model="llama-3.1-70b-versatile",
+    )
+    return chat_completion.choices[0].message.content
+
+def enregistrer_sur_notion(analyse):
+    """Enregistre l'analyse générée dans ta base de données Notion"""
     url = "https://api.notion.com/v1/pages"
-    date_iso = datetime.now().strftime("%Y-%m-%d")
     headers = {
         "Authorization": f"Bearer {NOTION_API_KEY}",
         "Content-Type": "application/json",
-        "Notion-Version": "2022-06-28"
+        "Notion-Version": "2022-02-28"
     }
     data = {
         "parent": {"database_id": NOTION_DATABASE_ID},
         "properties": {
-            "Name": {"title": [{"text": {"content": title}}]},
-            "Date": {"date": {"start": date_iso}}
+            "Titre": {
+                "title": [{"text": {"content": "Flash Boursier Automatique"}}]
+            }
         },
-        "children": [{"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": content[:2000]}}]}}]
+        "children": [
+            {
+                "object": "block",
+                "paragraph": {
+                    "rich_text": [{"text": {"content": analyse}}]
+                }
+            }
+        ]
     }
     requests.post(url, headers=headers, json=data)
 
-def generer_analyse():
-    angles = [
-        "Focus sur la tech, les valeurs de croissance et l'intelligence artificielle sur les marchés.",
-        "Focus sur l'inflation, les décisions des banques centrales (FED, BCE) et les taux d'intérêt.",
-        "Focus sur les matières premières (pétrole, or) et les mouvements géopolitiques mondiaux.",
-        "Focus sur les résultats d'entreprises, les actions en forte hausse/baisse et les conseils de rotation sectorielle."
-    ]
-    prompt = (
-        f"Tu es un expert analyste financier renommé. Rédige un flash boursier et financier complet "
-        f"en suivant STRICTEMENT cet ordre : 1. Les faits marquants, 2. Les indicateurs clés, "
-        f"3. Ton analyse d'expert et ton avis tranché à la fin. Angle : {random.choice(angles)}"
-    )
-    completion = client.chat.completions.create(model=SELECTED_MODEL, messages=[{"role": "user", "content": prompt}])
-    return str(completion.choices[0].message.content)
-
 def envoyer_telegram():
-    message = generer_analyse()
-    titre = f"Flash Finance & Bourse - {datetime.now().strftime('%d/%m/%Y')}"
-    add_to_notion(titre, message)
+    """Génère l'analyse, l'envoie sur Notion, puis l'envoie sur Telegram avec le bouton Régénérer"""
+    print("🔄 Génération d'une nouvelle analyse en cours...")
+    analyse = generer_analyse_financiere()
     
-    url_telegram = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    # Enregistrement Notion
+    enregistrer_sur_notion(analyse)
+    
+    # Ajout du bouton interactif "Régénérer"
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
-        "text": f"📈 *{titre}*\n\n{message}",
-        "parse_mode": "Markdown",
+        "text": analyse,
         "reply_markup": {
-            "inline_keyboard": [[{"text": "🔄 Régénérer un autre article", "callback_data": "regen"}]]
+            "inline_keyboard": [
+                [{"text": "🔄 Régénérer", "callback_data": "regen"}]
+            ]
         }
     }
-    requests.post(url_telegram, json=payload)
+    requests.post(url, json=payload)
+    print("✅ Analyse envoyée sur Telegram et enregistrée sur Notion !")
 
 def ecouter_telegram():
+    """Boucle d'écoute continue 24h/24 pour intercepter les clics sur les boutons"""
     print("🤖 Bot démarré en écoute continue 24h/24...")
     offset = None
     while True:
@@ -74,17 +83,26 @@ def ecouter_telegram():
                 url += f"&offset={offset}"
             
             response = requests.get(url).json()
+            
             if "result" in response:
                 for update in response["result"]:
                     offset = update["update_id"] + 1
                     if "callback_query" in update:
                         query = update["callback_query"]
+                        print(f"👉 Clic détecté ! Donnée : {query['data']}")
                         if query["data"] == "regen":
-                            requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/answerCallbackQuery", json={"callback_query_id": query["id"], "text": "Génération d'une nouvelle analyse..."})
+                            # Valide le clic sur le bouton pour stopper l'animation de chargement sur Telegram
+                            requests.post(
+                                f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/answerCallbackQuery", 
+                                json={"callback_query_id": query["id"], "text": "Génération d'une nouvelle analyse..."}
+                            )
                             envoyer_telegram()
         except Exception as e:
             print(f"Erreur : {e}")
             time.sleep(5)
 
 if __name__ == "__main__":
+    print("🚀 Lancement du bot...")
+    # Envoie un premier message dès le démarrage, puis lance la boucle d'écoute permanente
+    envoyer_telegram()
     ecouter_telegram()
