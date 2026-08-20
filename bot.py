@@ -63,25 +63,12 @@ def recuperer_actualites_marches():
     return actus_formatees, alertes_detectees, actus_portfolio
 
 def generer_analyse_financiere():
-    """Génère l'analyse boursière avec Sentiment Score et Focus Portfolio"""
-    print("📰 Récupération et analyse multi-sources...")
+    """Génère l'analyse tactique (Achat/Vente/Hold) avec Sentiment Score et Focus Portfolio"""
+    print("📰 Récupération et analyse tactique multi-sources...")
     actus_du_jour, alertes, portfolio_actus = recuperer_actualites_marches()
     
-    consigne_alerte = ""
-    if alertes:
-        consigne_alerte = f"⚠️ Sujets sensibles à intégrer : {', '.join(alertes)}"
-        
-    consigne_portfolio = ""
-    if portfolio_actus:
-        consigne_portfolio = f"🎯 Actualités directes sur tes actifs suivis ({', '.join(VALEURS_SUIVIES)}) : {', '.join(portfolio_actus)}"
-    
-    angles = [
-        "Focus sur la macroéconomie et les décisions des banques centrales.",
-        "Analyse de la psychologie des marchés et de la volatilité actuelle.",
-        "Perspective tactique : opportunités à court terme et signaux techniques.",
-        "Vision prudente : analyse des risques et zones de support."
-    ]
-    angle_choisi = random.choice(angles)
+    consigne_alerte = f"⚠️ Sujets sensibles : {', '.join(alertes)}" if alertes else ""
+    consigne_portfolio = f"🎯 Suivi actif : {', '.join(portfolio_actus)}" if portfolio_actus else ""
     
     prompt = f"""
     Voici les actualités financières du jour :
@@ -90,16 +77,23 @@ def generer_analyse_financiere():
     {consigne_alerte}
     {consigne_portfolio}
     
-    Consigne d'angle : {angle_choisi}
+    TON RÔLE : Tu es un analyste financier senior spécialisé dans le trading tactique.
     
-    Rédige un flash financier court, percutant, dynamique avec des emojis (📈, 📉, 💡, 💰, 🚀). 
-    IMPERATIF : Attribue un "Sentiment Score" de marché sur une échelle de -5 (extrême peur/krach) à +5 (euphorie/haussier) sous format [Score de Sentiment : X/5]. Pas de sources directes, analyse pro et directe.
+    TA MISSION :
+    1. Analyse les données avec un angle macro-économique.
+    2. Attribue un [Score de Sentiment : X/5] (de -5 pour crash à +5 pour euphorie).
+    3. TERMINE PAR UNE SECTION "STRATÉGIE TACTIQUE" :
+       - Pour chaque actif majeur ou tendance identifiée, donne une recommandation claire : [ACHAT] / [VENTE] / [HOLD].
+       - Ajoute une courte justification (ex: "ACHAT Tesla - Hausse attendue suite aux news sectorielles").
+       - AJOUTE CET AVERTISSEMENT : "Ceci est une aide à la décision, pas un conseil en investissement. Effectue tes propres recherches."
+    
+    TON TON : Professionnel, percutant, direct. Utilise des emojis (📈, 📉, 💡, 💰, 🚀). Pas de blabla inutile, pas de liens.
     """
     
     chat_completion = client.chat.completions.create(
         messages=[{"role": "user", "content": prompt}],
         model="openai/gpt-oss-120b",
-        temperature=0.95,
+        temperature=0.7, # Température modérée pour plus de rigueur tactique
     )
     return chat_completion.choices[0].message.content
 
@@ -114,13 +108,12 @@ def generer_resume_hebdomadaire():
     }
     
     try:
-        response = requests.post(url, headers=headers, json={"page_size": 14}) # Récupère les derniers flashs
+        response = requests.post(url, headers=headers, json={"page_size": 14})
         data = response.json()
         
         textes_precedents = []
         if "results" in data:
             for page in data["results"]:
-                # Extraction basique des blocs enfants ou titre
                 titre_page = page.get("properties", {}).get("Titre", {}).get("title", [{}])
                 if titre_page:
                     textes_precedents.append(titre_page[0].get("text", {}).get("content", ""))
@@ -128,10 +121,10 @@ def generer_resume_hebdomadaire():
         historique_str = "\n---\n".join(textes_precedents)
         
         prompt = f"""
-        Voici l'historique des analyses financières enregistrées cette semaine dans notre base de données :
+        Voici l'historique des analyses tactiques enregistrées cette semaine dans notre base de données :
         {historique_str}
         
-        Rédige un "Résumé Hebdomadaire Stratégique" global de la semaine passée. Identifie les tendances de fond, l'évolution du sentiment général et les points de vigilance pour la semaine à venir. Utilise des emojis et un ton professionnel.
+        Rédige un "Résumé Hebdomadaire Stratégique" global de la semaine passée. Identifie les tendances de fond, l'évolution du sentiment général et les perspectives tactiques pour la semaine à venir. Utilise des emojis et un ton professionnel.
         """
         
         chat_completion = client.chat.completions.create(
@@ -139,13 +132,13 @@ def generer_resume_hebdomadaire():
             model="openai/gpt-oss-120b",
             temperature=0.7,
         )
-        return "📅 **BILAN HEBDOMADAIRE DES MARCHÉS**\n\n" + chat_completion.choices[0].message.content
+        return "📅 **BILAN HEBDOMADAIRE STRATÉGIQUE**\n\n" + chat_completion.choices[0].message.content
         
     except Exception as e:
         print(f"Erreur lors de la génération du résumé hebdo via Notion : {e}")
         return "📅 **Bilan Hebdomadaire** : Impossible de récupérer l'historique Notion cette semaine."
 
-def enregistrer_sur_notion(analyse, titre_page="Flash Boursier Avancé"):
+def enregistrer_sur_notion(analyse, titre_page="Flash Tactique Avancé"):
     """Enregistre le texte dans Notion"""
     url = "https://api.notion.com/v1/pages"
     headers = {
@@ -161,7 +154,7 @@ def enregistrer_sur_notion(analyse, titre_page="Flash Boursier Avancé"):
     requests.post(url, headers=headers, json=data)
 
 def envoyer_telegram(est_hebdo=False):
-    """Génère l'analyse (standard ou hebdo), l'enregistre sur Notion et l'envoie sur Telegram"""
+    """Génère l'analyse tactique ou hebdo, l'enregistre sur Notion et l'envoie sur Telegram"""
     print("🔄 Génération en cours...")
     
     if est_hebdo:
@@ -173,7 +166,7 @@ def envoyer_telegram(est_hebdo=False):
         }
     else:
         analyse = generer_analyse_financiere().replace("*", "")
-        enregistrer_sur_notion(analyse, titre_page="Flash Boursier Avancé")
+        enregistrer_sur_notion(analyse, titre_page="Flash Tactique Avancé")
         payload = {
             "chat_id": TELEGRAM_CHAT_ID,
             "text": analyse,
@@ -194,7 +187,7 @@ def ecouter_telegram():
             maintenant = datetime.now()
             heure_actuelle = maintenant.strftime("%H:%M")
             date_actuelle = maintenant.strftime("%Y-%m-%d")
-            jour_semaine = maintenant.strftime("%A") # ex: Sunday
+            jour_semaine = maintenant.strftime("%A")
             
             # 1. Planification Hebdomadaire (Dimanche à 20:00)
             if jour_semaine == "Sunday" and heure_actuelle == "20:00" and dernier_envoi_auto != f"{date_actuelle}-hebdo":
