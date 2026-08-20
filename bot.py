@@ -69,7 +69,7 @@ async def flash_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             chat_completion = groq_client.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
-                model="llama-3.3-70b-versatile", # Modèle ultra performant et rapide sur Groq
+                model="llama-3.3-70b-versatile",
             )
             ai_text = chat_completion.choices[0].message.content
             report = f"📈 **FLASH MARCHÉS (IA) - {date_str}**\n\n{ai_text}"
@@ -78,7 +78,6 @@ async def flash_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logging.error(f"Erreur Groq : {e}")
             report = f"📈 **FLASH MARCHÉS - {date_str}**\n\n⚠️ *Erreur lors de la génération IA, passage en mode de secours.*\nAnalyse stable sur les supports mondiaux, surveillance sur TradingView."
     else:
-        # Mode secours si la clé Groq n'est pas encore mise dans Railway
         report = (
             f"📈 **FLASH MARCHÉS - {date_str}**\n\n"
             "🎯 **Profil :** Équilibré / Prudent\n\n"
@@ -86,7 +85,8 @@ async def flash_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "💡 *Note : Ajoute ta clé GROQ_API_KEY sur Railway pour débloquer les analyses 100% dynamiques par l'IA !*"
         )
     
-    await update.message.reply_text(report, parse_Mime="Markdown" if False else "Markdown")
+    # Correction effectuée ici (parse_mode au lieu de parse_Mime)
+    await update.message.reply_text(report, parse_mode="Markdown")
 
     # Notion sync (optionnel)
     if NOTION_TOKEN and NOTION_DATABASE_ID:
