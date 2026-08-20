@@ -34,7 +34,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def flash_analysis(update_or_query, context, is_callback=True):
-    """Génère le flash global multi-marchés de manière compacte."""
+    """Génère le flash global multi-marchés avec indications d'achat/vente."""
     if is_callback:
         query = update_or_query
         await query.answer()
@@ -50,9 +50,9 @@ async def flash_analysis(update_or_query, context, is_callback=True):
 
     try:
         prompt = (
-            "Fais un résumé macroéconomique ultra-concis (maximum 2500 caractères) des tendances actuelles "
-            "pour : Bitcoin, S&P 500, CAC 40, Tesla, Apple, Ethereum, Or, Nvidia. "
-            "Sois direct et va à l'essentiel pour tenir dans un seul message Telegram."
+            "Fournis un point de situation macro et technique synthétique pour ces actifs : Bitcoin, S&P 500, CAC 40, Tesla, Apple, Ethereum, Or, Nvidia. "
+            "Pour chaque actif, indique clairement l'orientation technique sous la forme : [Tendance : ACHAT / VENTE / NEUTRE] "
+            "suivie d'une brève explication analytique."
         )
         
         chat_completion = groq_client.chat.completions.create(
@@ -85,11 +85,10 @@ async def flash_analysis(update_or_query, context, is_callback=True):
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        full_text = f"📊 **FLASH MARCHÉS GLOBAL**\n\n{report}\n\n*Clique sur un actif pour un zoom détaillé :*"
+        full_text = f"📊 **FLASH MARCHÉS GLOBAL & ORIENTATION**\n\n{report}\n\n*Clique sur un actif pour un zoom détaillé :*"
         
-        # Sécurité longueur
         if len(full_text) > 4000:
-            full_text = full_text[:3900] + "\n\n...(Rapport abrégé pour affichage optimal)"
+            full_text = full_text[:3900] + "\n\n...(Rapport abrégé)"
 
         await target_func(text=full_text, reply_markup=reply_markup, parse_mode="Markdown")
 
@@ -97,7 +96,7 @@ async def flash_analysis(update_or_query, context, is_callback=True):
         await target_func(text=f"⚠️ Erreur technique IA :\n{str(e)}", reply_markup=get_menu_keyboard())
 
 async def analyze_specific_asset(update_or_query, context, asset_name, is_callback=True):
-    """Analyse un actif spécifique avec avis clair (Achat/Vente/Neutre)."""
+    """Analyse un actif spécifique avec indication claire de positionnement."""
     if is_callback:
         query = update_or_query
         await query.answer()
@@ -109,9 +108,11 @@ async def analyze_specific_asset(update_or_query, context, asset_name, is_callba
 
     try:
         prompt = (
-            f"Fais un point d'analyse de marché pour l'actif : {asset_name}. "
-            "Donne clairement une perspective de positionnement parmi ces choix : [ACHAT FORT / ACHAT / NEUTRE / VENTE / VENTE FORTE], "
-            "puis explique brièvement la tendance, les niveaux clés et un avertissement de gestion des risques."
+            f"Analyse l'actif financier suivant : {asset_name}. "
+            "Fournis une évaluation technique axée sur les perspectives de marché. "
+            " Commence ta réponse par une ligne claire indiquant la posture de marché : "
+            "'ANALYSE DE POSTURE : [FAorable à l'ACHAT / Favorable à la VENTE / NEUTRE - ATTENTE]' "
+            "puis détaille les supports, résistances et la dynamique actuelle."
         )
 
         chat_completion = groq_client.chat.completions.create(
@@ -126,7 +127,7 @@ async def analyze_specific_asset(update_or_query, context, asset_name, is_callba
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        full_text = f"🎯 **ANALYSE & SIGNAL : {asset_name.upper()}**\n\n{detail_report}"
+        full_text = f"🎯 **ANALYSE DÉTAILLÉE : {asset_name.upper()}**\n\n{detail_report}"
         
         if len(full_text) > 4000:
             full_text = full_text[:3900] + "\n\n...(Ajusté pour affichage)"
