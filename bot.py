@@ -54,8 +54,7 @@ def enregistrer_sur_notion(analyse):
 def envoyer_telegram():
     """Génère l'analyse, l'envoie sur Notion, puis l'envoie sur Telegram avec le bouton Régénérer"""
     print("🔄 Génération d'une nouvelle analyse en cours...")
-    analyse = generer_analyse_financiere()
-    analyse = analyse_brute.replace("*", "")
+    analyse = generer_analyse_financiere().replace("*", "")
     
     # Enregistrement Notion
     enregistrer_sur_notion(analyse)
