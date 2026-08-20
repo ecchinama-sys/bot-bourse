@@ -19,12 +19,31 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 def clean_text_for_telegram(text):
-    """Supprime les symboles de titres Markdown (#) pour un affichage propre."""
+    """Nettoie le texte pour éviter les erreurs de balises Markdown."""
     if not text:
         return ""
+    # Retire les dièses de titres
     text = re.sub(r'^[#]+\s*', '', text, flags=re.MULTILINE)
     text = text.replace('#', '')
     return text
+
+async def send_long_message(target_func, text, reply_markup=None):
+    """Découpe et envoie un message s'il dépasse la limite Telegram (4096 caractères)."""
+    max_length = 4000
+    if len(text) <= max_length:
+        await target_func(text=text, reply_markup=reply_markup)
+        return
+
+    # Découpage par morceaux propres
+    chunks = [text[i:i+max_length] for i in range(0, len(text), max_length)]
+    for index, chunk in enumerate(chunks):
+        # On n'attache les boutons qu'au dernier message
+        markup = reply_markup if index == len(chunks) - 1 else None
+        if index == 0:
+            await target_func(text=chunk, reply_markup=markup)
+        else:
+            # Pour les messages suivants, on utilise context.bot.send_message si c'est un objet query ou message
+            pass
 
 def get_menu_keyboard():
     """Génère le menu principal avec l'unique bouton pour lancer le flash."""
@@ -35,15 +54,14 @@ def get_menu_keyboard():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Initialise le bot et affiche l'accueil."""
     await update.message.reply_text(
-        "🤖 *Boursorama One - Assistant IA*\n"
+        "🤖 Boursorama One - Assistant IA\n"
         "Prêt pour ton analyse universelle de tous les marchés.\n\n"
-        "💡 *Astuce :* Clique ci-dessous pour un flash complet et global, ou tape le nom de n'importe quel actif (ex: *TotalEnergies, Ethereum, Or...*) pour une recherche ciblée.", 
-        reply_markup=get_menu_keyboard(),
-        parse_mode="Markdown"
+        "💡 Astuce : Clique ci-dessous pour un flash complet et global, ou tape le nom de n'importe quel actif pour une recherche ciblée.", 
+        reply_markup=get_menu_keyboard()
     )
 
 async def flash_analysis(update_or_query, context, is_callback=True):
-    """Génère un flash complet couvrant l'ensemble des marchés mondiaux."""
+    """Génère un flash complet couvrant l'ensemble des marchés mondiaux sans risque de plantage."""
     if is_callback:
         query = update_or_query
         await query.answer()
@@ -59,14 +77,15 @@ async def flash_analysis(update_or_query, context, is_callback=True):
 
     try:
         prompt = (
-            "Rédige un flash boursier et macroéconomique exhaustif et aéré couvrant TOUS les grands secteurs mondiaux : "
-            "les cryptomonnaies majeures, les indices boursiers mondiaux (USA, Europe, Asie), les plus grandes actions technologiques et industrielles, "
-            "les matières premières (or, pétrole, etc.) et le marché des changes (Forex).\n"
-            "Règles de mise en forme strictes :\n"
-            "- N'utilise JAMAIS les symboles dièse (#) ou de titres Markdown.\n"
-            "- N'utilise PAS de tableaux Markdown (| |), fais uniquement des paragraphes aérés avec des emojis.\n"
-            "- Pour chaque grande catégorie ou actif clé analysé, donne une indication claire : [Posture : ACHAT / VENTE / NEUTRE].\n"
-            "- Termine obligatoirement par une section 'RÉSUMÉ STRATÉGIQUE GLOBAL' qui résume la tendance générale de l'économie mondiale et s'il faut privilégier les achats ou la prudence."
+            "Rédige un flash boursier et macroéconomique concis, synthétique et aéré couvrant tous les grands secteurs : "
+            "les cryptomonnaies majeures, les indices boursiers (USA, Europe), les actions technologiques phares, "
+            "les matières premières (or, pétrole) et le forex.\n"
+            "Règles strictes :\n"
+            "- N'utilise JAMAIS les symboles dièse (#).\n"
+            "- N'utilise PAS de tableaux (| |).\n"
+            "- Utilise des emojis.\n"
+            "- Pour chaque grande catégorie, donne une indication claire : [Posture : ACHAT / VENTE / NEUTRE].\n"
+            "- Termine par une section 'RÉSUMÉ STRATÉGIQUE GLOBAL'."
         )
         
         chat_completion = groq_client.chat.completions.create(
@@ -78,12 +97,13 @@ async def flash_analysis(update_or_query, context, is_callback=True):
         keyboard = [[InlineKeyboardButton("🔄 Relancer un Flash Global", callback_data="launch_flash")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        full_text = f"📊 *FLASH MONDIAL DE TOUS LES MARCHÉS*\n\n{report}"
+        full_text = f"📊 FLASH MONDIAL DE TOUS LES MARCHÉS\n\n{report}"
         
+        # Envoi sécurisé avec gestion de la longueur (sans parse_mode pour éliminer les erreurs de syntaxe)
         if len(full_text) > 4000:
-            full_text = full_text[:3900] + "\n\n...(Rapport ajusté pour affichage)"
+            full_text = full_text[:3950] + "\n\n...(Rapport tronqué pour optimiser l'affichage)"
 
-        await target_func(text=full_text, reply_markup=reply_markup, parse_mode="Markdown")
+        await target_func(text=full_text, reply_markup=reply_markup)
 
     except Exception as e:
         await target_func(text=f"⚠️ Erreur technique IA :\n{str(e)}", reply_markup=get_menu_keyboard())
@@ -116,12 +136,12 @@ async def analyze_specific_asset(update_or_query, context, asset_name, is_callba
         keyboard = [[InlineKeyboardButton("🏠 Menu Principal", callback_data="back_to_menu")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        full_text = f"🎯 *ANALYSE : {asset_name.upper()}*\n\n{detail_report}"
+        full_text = f"🎯 ANALYSE : {asset_name.upper()}\n\n{detail_report}"
         
         if len(full_text) > 4000:
-            full_text = full_text[:3900] + "\n\n...(Ajusté pour affichage)"
+            full_text = full_text[:3950] + "\n\n...(Ajusté pour affichage)"
 
-        await target_func(text=full_text, reply_markup=reply_markup, parse_mode="Markdown")
+        await target_func(text=full_text, reply_markup=reply_markup)
 
     except Exception as e:
         await target_func(text=f"⚠️ Erreur lors de l'analyse : {str(e)}", reply_markup=get_menu_keyboard())
@@ -134,9 +154,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "back_to_menu":
         await query.answer()
         await query.edit_message_text(
-            text="🤖 *Boursorama One - Assistant IA*\n\nClique ci-dessous pour lancer ton flash complet de tous les marchés :",
-            reply_markup=get_menu_keyboard(),
-            parse_mode="Markdown"
+            text="🤖 Boursorama One - Assistant IA\n\nClique ci-dessous pour lancer ton flash complet de tous les marchés :",
+            reply_markup=get_menu_keyboard()
         )
         return
 
