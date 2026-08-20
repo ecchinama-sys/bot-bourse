@@ -80,4 +80,4 @@ Style : Professionnel, direct, percutant et lisible sur mobile."""
     else:
         print(f"⚠️ Erreur lors de l'envoi automatique.")
 
-# Configuration du planificateur pour s'exécuter chaque jour à 00:00 pile (Heure UTC / Serveur)
+tache_flash_bourse()
