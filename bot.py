@@ -17,24 +17,26 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 # Initialisation Groq
 groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
+# Clavier permanent en bas de l'écran
+def get_main_keyboard():
+    return ReplyKeyboardMarkup([["📈 Lancer le Flash Marché"]], resize_keyboard=True, is_persistent=True)
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Initialise le bot et force l'affichage du clavier permanent."""
-    keyboard = [["📈 Lancer le Flash Marché"]]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, is_persistent=True)
+    """Initialise le bot et affiche le clavier permanent."""
     await update.message.reply_text(
         "🤖 **Boursorama One - Assistant IA**\n"
         "Prêt pour ton analyse universelle.\n\n"
         "💡 *Astuce :* Tu peux taper le nom de n'importe quel actif (ex: *Bitcoin, Nvidia, Or...*) pour une analyse sur mesure.", 
-        reply_markup=reply_markup, 
+        reply_markup=get_main_keyboard(), 
         parse_mode="Markdown"
     )
 
 async def flash_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Génère le flash global multi-marchés."""
-    await update.message.reply_text("🔍 Analyse globale multi-marchés en cours...")
+    await update.message.reply_text("🔍 Analyse globale multi-marchés en cours...", reply_markup=get_main_keyboard())
     
     if not groq_client:
-        await update.message.reply_text("⚠️ Erreur : Clé GROQ_API_KEY non trouvée.")
+        await update.message.reply_text("⚠️ Erreur : Clé GROQ_API_KEY non trouvée.", reply_markup=get_main_keyboard())
         return
 
     try:
@@ -75,11 +77,13 @@ async def flash_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=reply_markup,
             parse_mode="Markdown"
         )
+        # On s'assure de renvoyer un message avec le clavier permanent pour qu'il reste affiché
+        await update.message.reply_text("📌 Utilise le bouton ci-dessous pour relancer un flash ou tape un actif :", reply_markup=get_main_keyboard())
 
     except Exception as e:
-        await update.message.reply_text(f"⚠️ Erreur technique IA :\n{str(e)}")
+        await update.message.reply_text(f"⚠️ Erreur technique IA :\n{str(e)}", reply_markup=get_main_keyboard())
 
-async def analyze_specific_asset(update_or_query, context, asset_name, is_callback=True):
+async def analyze_specific_asset(update_or_query, context, asset_name, is_callback=True, update_obj=None):
     """Analyse un actif spécifique de manière structurée."""
     if is_callback:
         query = update_or_query
@@ -113,6 +117,10 @@ async def analyze_specific_asset(update_or_query, context, asset_name, is_callba
             reply_markup=reply_markup,
             parse_mode="Markdown"
         )
+        
+        # Si c'était une recherche libre par texte, on renvoie un petit message pour ramener le clavier en bas
+        if not is_callback and update_obj:
+            await update_obj.reply_text("👇 Ton menu permanent :", reply_markup=get_main_keyboard())
 
     except Exception as e:
         await target_message(text=f"⚠️ Erreur lors de l'analyse : {str(e)}")
@@ -123,7 +131,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if query.data == "back_to_menu":
         await query.answer()
-        await query.edit_message_text(text="✅ Menu principal. Clique sur ton bouton en bas pour relancer un Flash global.")
+        await query.edit_message_text(text="✅ Menu principal.")
+        await context.bot.send_message(chat_id=query.message.chat_id, text="👇 Utilise le bouton ci-dessous :", reply_markup=get_main_keyboard())
         return
 
     asset_map = {
@@ -149,13 +158,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await flash_analysis(update, context)
     else:
         if not groq_client:
-            await update.message.reply_text("⚠️ Erreur : Clé GROQ_API_KEY non trouvée.")
+            await update.message.reply_text("⚠️ Erreur : Clé GROQ_API_KEY non trouvée.", reply_markup=get_main_keyboard())
             return
-        await analyze_specific_asset(update_or_query=update.message, context=context, asset_name=text, is_callback=False)
+        await analyze_specific_asset(update_or_query=update.message, context=context, asset_name=text, is_callback=False, update_obj=update.message)
 
 def main():
     if not TELEGRAM_TOKEN:
-        print("Erreur : TELEGRAM_TOKEN manquant")
+        print("Erreur : TELETOKEN manquant")
         return
 
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
