@@ -70,7 +70,7 @@ Style : Professionnel, direct, percutant et lisible sur mobile."""
     url_telegram = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
-        "text": f"🌙 *Flash Automatique de Minuit*\n\n📰 *{titre_page}* \n\n{message_ia}",
+        "text": f"🌙 *Flash Automatique de Minuit*\n\n 🗞️ *{titre_page}*\n\n{message_ia}",
         "parse_mode": "Markdown"
     }
     res_tg = requests.post(url_telegram, json=payload)
