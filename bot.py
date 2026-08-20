@@ -19,7 +19,7 @@ def generer_analyse_financiere():
         "Rédige un flash d'analyse financière court, percutant et dynamique "
         "sur les marchés du jour avec les tendances clés. "
         "Utilise des emojis pertinents (📈, 📉, 💡, 💰, 🚀, ⚡) au début de chaque ligne ou section. "
-        "IMPORTANT : n'utilise aucun caractère de formatage Markdown comme des astérisques (*) ou des tirets bas (_)."
+        "IMPORTANT : # Au moment d'envoyer à Telegram, tu nettoies tous les astérisques d'un coup : texte_final = analyse.replace("*", "")."
     )
     
     chat_completion = client.chat.completions.create(
