@@ -4,11 +4,11 @@ import requests
 from groq import Groq
 
 # Récupération des clés API depuis les variables d'environnement Railway
-GROQ_API_KEY = os.environ.get("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")
-TELEGRAM_BOT_TOKEN = os.environ.get("8820955818:AAGtMB-LwbJSw7CS8uYWIMVVLkT-Lvkkd-s")
-TELEGRAM_CHAT_ID = os.environ.get("6736922134")
-NOTION_API_KEY = os.environ.get("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")
-NOTION_DATABASE_ID = os.environ.get("https://app.notion.com/p/3c2ff48f1aed803db912e3f32650c7a5?v=3c2ff48f1aed80499920000c65daf439&source=copy_link")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+NOTION_API_KEY = os.environ.get("NOTION_API_KEY")
+NOTION_DATABASE_ID = os.environ.get("NOTION_DATABASE_ID")
 
 client = Groq(api_key=GROQ_API_KEY)
 
