@@ -4,14 +4,14 @@ import requests
 from datetime import datetime
 from groq import Groq
 
-# --- TES CLES API ---
+# --- TES CLES API (À remplir) ---
 GROQ_API_KEY = "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"
 TELEGRAM_BOT_TOKEN = "8820955818:AAGtMB-LwbJSw7CS8uYWIMVVLkT-Lvkkd-s"
 TELEGRAM_CHAT_ID = "6736922134"
 NOTION_API_KEY = "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"
 NOTION_DATABASE_ID = "https://app.notion.com/p/3c2ff48f1aed803db912e3f32650c7a5?v=3c2ff48f1aed80499920000c65daf439&source=copy_link"
 
-# Initialisation Groq et sélection automatique du modèle texte
+# Initialisation Groq et sélection automatique du modèle
 client = Groq(api_key=GROQ_API_KEY)
 models_list = client.models.list().data
 SELECTED_MODEL = next((m.id for m in models_list if "llama" in m.id.lower() and "whisper" not in m.id.lower() and "guard" not in m.id.lower()), "llama-3.3-70b-versatile")
@@ -32,7 +32,7 @@ def add_to_notion(title, content):
     response = requests.post(url, headers=headers, json=data)
     return response.status_code
 
-# Fonction principale de génération
+# Fonction principale de génération du flash de minuit
 def tache_flash_bourse():
     print("\n🌙 Minuit : Lancement de la génération automatique du flash boursier...")
     
@@ -44,11 +44,16 @@ def tache_flash_bourse():
     ]
     angle_du_jour = random.choice(angles_possibles)
     
-    prompt = f"Tu es un analyste financier senior. Rédige un flash d'actualité boursière percutant et diversifié. Angle prioritaire : {angle_du_jour}. Format : 1. Tendance & Contexte, 2. Actualités & Thématiques Clés, 3. Le Regard de l'Expert."
+    prompt = f"Tu es un analyste financier senior. Rédige un flash d'actualité boursière percutant et diversifié. Angle prioritaire pour cette édition : {angle_du_jour}. Format attendu : 1. Tendance & Contexte Général, 2. Actualités & Thématiques Clés, 3. Le Regard de l'Expert. Style : Professionnel, direct, percutant et lisible sur mobile."
     
-    completion = client.chat.completions.create(model=SELECTED_MODEL, messages=[{"role": "user", "content": prompt}])
+    # Génération IA
+    completion = client.chat.completions.create(
+        model=SELECTED_MODEL,
+        messages=[{"role": "user", "content": prompt}]
+    )
     message_ia = str(completion.choices[0].message.content)
 
+    # Enregistrement et Envoi
     date_du_jour = datetime.now().strftime("%d/%m/%Y")
     titre_page = f"Flash Bourse & Actu - {date_du_jour}"
     status_notion = add_to_notion(titre_page, message_ia)
@@ -59,7 +64,14 @@ def tache_flash_bourse():
         "text": f"🌙 *Flash Automatique de Minuit*\n\n🗞️ *{titre_page}*\n\n{message_ia}",
         "parse_mode": "Markdown",
         "reply_markup": {
-            "inline_keyboard": [[{"text": "🔄 Générer un autre angle", "callback_data": "autre_angle"}]]
+            "inline_keyboard": [
+                [
+                    {
+                        "text": "🔄 Générer un autre angle",
+                        "callback_data": "autre_angle"
+                    }
+                ]
+            ]
         }
     }
     res_tg = requests.post(url_telegram, json=payload)
@@ -69,5 +81,5 @@ def tache_flash_bourse():
     else:
         print(f"⚠️ Erreur lors de l'envoi automatique.")
 
-# Exécution
+# Exécution du script
 tache_flash_bourse()
