@@ -5,6 +5,7 @@ from groq import Groq
 
 # Récupération des clés API depuis les variables d'environnement Railway
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+print(f"DEBUG - Longueur de la clé Groq récupérée : {len(GROQ_API_KEY) if GROQ_API_KEY else 'VIDE'}")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 NOTION_API_KEY = os.environ.get("NOTION_API_KEY")
