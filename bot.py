@@ -1,6 +1,8 @@
 import os
 import time
 import requests
+import urllib.request
+import xml.etree.ElementTree as ET
 from groq import Groq
 
 # Récupération des clés API depuis les variables d'environnement Railway
@@ -13,9 +15,40 @@ NOTION_DATABASE_ID = os.environ.get("NOTION_DATABASE_ID")
 
 client = Groq(api_key=GROQ_API_KEY)
 
+def recuperer_actualites_marches():
+    """Récupère les derniers titres d'actualité financière via un flux RSS (RAG)"""
+    try:
+        url_rss = "https://finance.yahoo.com/news/rssindex"
+        req = urllib.request.Request(
+            url_rss, 
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        response = urllib.request.urlopen(req)
+        xml_data = response.read()
+        
+        root = ET.fromstring(xml_data)
+        titres = []
+        for item in root.findall('.//item')[:5]: # On extrait les 5 derniers articles
+            titre = item.find('title')
+            if titre is not None and titre.text:
+                titres.append(titre.text)
+                
+        return "\n".join([f"- {t}" for t in titres])
+    except Exception as e:
+        print(f"Erreur lors de la récupération du flux RSS : {e}")
+        return "Marchés mondiaux en phase d'observation, surveillez les tendances macroéconomiques du jour."
+
 def generer_analyse_financiere():
-    """Génère l'analyse boursière via l'IA Groq"""
-    prompt = "Rédige un flash d'analyse financière court, percutant et dynamique sur les marchés du jour avec des emojis (📈, 📉, 💡, 💰, 🚀)."
+    """Génère l'analyse boursière via l'IA Groq en mode RAG (basé sur les actus du jour)"""
+    print("📰 Récupération des actualités du marché...")
+    actus_du_jour = recuperer_actualites_marches()
+    
+    prompt = f"""
+    Voici les dernières actualités et titres de marché du jour :
+    {actus_du_jour}
+    
+    En te basant strictement sur ces faits ou sur le contexte général de ces actualités, rédige un flash d'analyse financière court, percutant et dynamique avec des emojis (📈, 📉, 💡, 💰, 🚀). Ne fais pas de référence directe aux liens ou aux sources, donne juste l'analyse pro et directe.
+    """
     
     chat_completion = client.chat.completions.create(
         messages=[
@@ -37,7 +70,7 @@ def enregistrer_sur_notion(analyse):
         "parent": {"database_id": NOTION_DATABASE_ID},
         "properties": {
             "Titre": {
-                "title": [{"text": {"content": "Flash Boursier Automatique"}}]
+                "title": [{"text": {"content": "Flash Boursier Automatique (RAG)"}}]
             }
         },
         "children": [
@@ -52,8 +85,8 @@ def enregistrer_sur_notion(analyse):
     requests.post(url, headers=headers, json=data)
 
 def envoyer_telegram():
-    """Génère l'analyse, l'envoie sur Notion, puis l'envoie sur Telegram avec le bouton Régénérer"""
-    print("🔄 Génération d'une nouvelle analyse en cours...")
+    """Génère l'analyse en mode RAG, l'envoie sur Notion, puis sur Telegram avec le bouton Régénérer"""
+    print("🔄 Génération d'une nouvelle analyse RAG en cours...")
     analyse = generer_analyse_financiere().replace("*", "")
     
     # Enregistrement Notion
@@ -71,7 +104,7 @@ def envoyer_telegram():
         }
     }
     requests.post(url, json=payload)
-    print("✅ Analyse envoyée sur Telegram et enregistrée sur Notion !")
+    print("✅ Analyse RAG envoyée sur Telegram et enregistrée sur Notion !")
 
 def ecouter_telegram():
     """Boucle d'écoute continue 24h/24 pour intercepter les clics sur les boutons et les commandes texte"""
@@ -94,7 +127,6 @@ def ecouter_telegram():
                         query = update["callback_query"]
                         print(f"👉 Clic détecté ! Donnée : {query['data']}")
                         if query["data"] == "regen":
-                            # Valide le clic sur le bouton pour stopper l'animation de chargement sur Telegram
                             requests.post(
                                 f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/answerCallbackQuery", 
                                 json={"callback_query_id": query["id"], "text": "Génération d'une nouvelle analyse..."}
