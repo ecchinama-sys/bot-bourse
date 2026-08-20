@@ -74,7 +74,7 @@ def envoyer_telegram():
     print("✅ Analyse envoyée sur Telegram et enregistrée sur Notion !")
 
 def ecouter_telegram():
-    """Boucle d'écoute continue 24h/24 pour intercepter les clics sur les boutons"""
+    """Boucle d'écoute continue 24h/24 pour intercepter les clics sur les boutons et les commandes texte"""
     print("🤖 Bot démarré en écoute continue 24h/24...")
     offset = None
     while True:
@@ -88,6 +88,8 @@ def ecouter_telegram():
             if "result" in response:
                 for update in response["result"]:
                     offset = update["update_id"] + 1
+                    
+                    # 1. Gestion des clics sur les boutons interactifs
                     if "callback_query" in update:
                         query = update["callback_query"]
                         print(f"👉 Clic détecté ! Donnée : {query['data']}")
@@ -98,6 +100,17 @@ def ecouter_telegram():
                                 json={"callback_query_id": query["id"], "text": "Génération d'une nouvelle analyse..."}
                             )
                             envoyer_telegram()
+                            
+                    # 2. Gestion des messages texte (ex: /start)
+                    elif "message" in update:
+                        message = update["message"]
+                        if "text" in message:
+                            texte_recu = message["text"].strip()
+                            print(f"💬 Message texte reçu : {texte_recu}")
+                            if texte_recu == "/start":
+                                print("🚀 Commande /start détectée, envoi d'une analyse...")
+                                envoyer_telegram()
+                                
         except Exception as e:
             print(f"Erreur : {e}")
             time.sleep(5)
