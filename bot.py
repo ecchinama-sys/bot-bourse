@@ -6,9 +6,8 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from groq import Groq
 
-# Récupération des clés API depuis les variables d'environnement Railway
+# Récupération des clés API
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-print(f"DEBUG - Longueur de la clé Groq récupérée : {len(GROQ_API_KEY) if GROQ_API_KEY else 'VIDE'}")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 NOTION_API_KEY = os.environ.get("NOTION_API_KEY")
@@ -17,62 +16,60 @@ NOTION_DATABASE_ID = os.environ.get("NOTION_DATABASE_ID")
 client = Groq(api_key=GROQ_API_KEY)
 
 def recuperer_actualites_marches():
-    """Récupère les derniers titres d'actualité financière via un flux RSS (RAG)"""
-    try:
-        url_rss = "https://finance.yahoo.com/news/rssindex"
-        req = urllib.request.Request(
-            url_rss, 
-            headers={'User-Agent': 'Mozilla/5.0'}
-        )
-        response = urllib.request.urlopen(req)
-        xml_data = response.read()
-        
-        root = ET.fromstring(xml_data)
-        titres = []
-        for item in root.findall('.//item')[:5]: # On extrait les 5 derniers articles
-            titre = item.find('title')
-            if titre is not None and titre.text:
-                titres.append(titre.text)
-                
-        return "\n".join([f"- {t}" for t in titres])
-    except Exception as e:
-        print(f"Erreur lors de la récupération du flux RSS : {e}")
-        return "Marchés mondiaux en phase d'observation, surveillez les tendances macroéconomiques du jour."
+    """Récupère et mélange des titres depuis plusieurs flux financiers pour garantir la variété"""
+    flux = [
+        "https://finance.yahoo.com/news/rssindex",
+        "https://www.reutersagency.com/feed/?taxonomy=categories&post_type=best-topics&term=financial-markets",
+        "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664"
+    ]
+    
+    tous_les_titres = []
+    
+    for url in flux:
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=10) as response:
+                xml_data = response.read()
+                root = ET.fromstring(xml_data)
+                for item in root.findall('.//item')[:3]: # On prend les 3 derniers de chaque
+                    titre = item.find('title')
+                    if titre is not None and titre.text:
+                        tous_les_titres.append(titre.text)
+        except Exception as e:
+            print(f"Erreur flux {url}: {e}")
+    
+    # Mélange aléatoire pour que l'analyse change à chaque fois
+    random.shuffle(tous_les_titres)
+    return "\n".join([f"- {t}" for t in tous_les_titres[:6]])
 
 def generer_analyse_financiere():
-    """Génère l'analyse boursière via l'IA Groq en mode RAG avec de la variété"""
-    print("📰 Récupération des actualités du marché...")
+    print("📰 Récupération des actualités (multi-sources)...")
     actus_du_jour = recuperer_actualites_marches()
     
-    # Angles aléatoires pour varier les formulations et l'angle d'attaque à chaque régénération
     angles = [
-        "Concentre-toi en priorité sur l'impact macroéconomique global.",
-        "Mets l'accent sur la psychologie des investisseurs et la volatilité.",
-        "Aborde le marché sous un angle dynamique axé sur les opportunités court terme.",
-        "Mets en avant les signaux de tendance et la prudence."
+        "Focus sur la macroéconomie et les décisions des banques centrales.",
+        "Analyse de la psychologie des marchés et de la volatilité actuelle.",
+        "Perspective tactique : opportunités à court terme et signaux techniques.",
+        "Vision prudente : analyse des risques et zones de support."
     ]
     angle_choisi = random.choice(angles)
     
     prompt = f"""
-    Voici les dernières actualités et titres de marché du jour :
+    Voici les actualités financières du jour :
     {actus_du_jour}
     
-    Consigne spécifique pour cette analyse : {angle_choisi}
-    
-    En te basant sur ces actualités, rédige un flash d'analyse financière court, percutant et dynamique avec des emojis (📈, 📉, 💡, 💰, 🚀). Ne fais pas de référence directe aux liens ou aux sources, donne juste l'analyse pro et directe.
+    Consigne : {angle_choisi}
+    Rédige un flash financier court, percutant, dynamique avec des emojis (📈, 📉, 💡, 💰, 🚀). Pas de sources, juste une analyse pro et directe.
     """
     
     chat_completion = client.chat.completions.create(
-        messages=[
-            {"role": "user", "content": prompt}
-        ],
+        messages=[{"role": "user", "content": prompt}],
         model="openai/gpt-oss-120b",
-        temperature=0.9, # Augmente la créativité pour éviter les doublons à l'identique
+        temperature=0.95, # Très créatif
     )
     return chat_completion.choices[0].message.content
 
 def enregistrer_sur_notion(analyse):
-    """Enregistre l'analyse générée dans ta base de données Notion"""
     url = "https://api.notion.com/v1/pages"
     headers = {
         "Authorization": f"Bearer {NOTION_API_KEY}",
@@ -81,87 +78,43 @@ def enregistrer_sur_notion(analyse):
     }
     data = {
         "parent": {"database_id": NOTION_DATABASE_ID},
-        "properties": {
-            "Titre": {
-                "title": [{"text": {"content": "Flash Boursier Automatique (RAG varié)"}}]
-            }
-        },
-        "children": [
-            {
-                "object": "block",
-                "paragraph": {
-                    "rich_text": [{"text": {"content": analyse}}]
-                }
-            }
-        ]
+        "properties": {"Titre": {"title": [{"text": {"content": "Flash Boursier RAG Multi-Sources"}}]}},
+        "children": [{"object": "block", "paragraph": {"rich_text": [{"text": {"content": analyse}}]}}]
     }
     requests.post(url, headers=headers, json=data)
 
 def envoyer_telegram():
-    """Génère l'analyse en mode RAG, l'envoie sur Notion, puis sur Telegram avec le bouton Régénérer"""
-    print("🔄 Génération d'une nouvelle analyse RAG en cours...")
+    print("🔄 Génération en cours...")
     analyse = generer_analyse_financiere().replace("*", "")
-    
-    # Enregistrement Notion
     enregistrer_sur_notion(analyse)
     
-    # Ajout du bouton interactif "Régénérer"
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
         "text": analyse,
-        "reply_markup": {
-            "inline_keyboard": [
-                [{"text": "🔄 Régénérer", "callback_data": "regen"}]
-            ]
-        }
+        "reply_markup": {"inline_keyboard": [[{"text": "🔄 Régénérer", "callback_data": "regen"}]]}
     }
     requests.post(url, json=payload)
-    print("✅ Analyse RAG envoyée sur Telegram et enregistrée sur Notion !")
 
 def ecouter_telegram():
-    """Boucle d'écoute continue 24h/24 pour intercepter les clics sur les boutons et les commandes texte"""
-    print("🤖 Bot démarré en écoute continue 24h/24...")
+    print("🤖 Bot en écoute...")
     offset = None
     while True:
         try:
-            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates?timeout=30"
-            if offset:
-                url += f"&offset={offset}"
-            
+            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates?timeout=30&offset={offset}" if offset else f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates?timeout=30"
             response = requests.get(url).json()
-            
             if "result" in response:
                 for update in response["result"]:
                     offset = update["update_id"] + 1
-                    
-                    # 1. Gestion des clics sur les boutons interactifs
                     if "callback_query" in update:
-                        query = update["callback_query"]
-                        print(f"👉 Clic détecté ! Donnée : {query['data']}")
-                        if query["data"] == "regen":
-                            requests.post(
-                                f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/answerCallbackQuery", 
-                                json={"callback_query_id": query["id"], "text": "Génération d'une nouvelle analyse..."}
-                            )
-                            envoyer_telegram()
-                            
-                    # 2. Gestion des messages texte (ex: /start)
-                    elif "message" in update:
-                        message = update["message"]
-                        if "text" in message:
-                            texte_recu = message["text"].strip()
-                            print(f"💬 Message texte reçu : {texte_recu}")
-                            if texte_recu == "/start":
-                                print("🚀 Commande /start détectée, envoi d'une analyse...")
-                                envoyer_telegram()
-                                
+                        requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/answerCallbackQuery", json={"callback_query_id": update["callback_query"]["id"]})
+                        envoyer_telegram()
+                    elif "message" in update and update["message"].get("text") == "/start":
+                        envoyer_telegram()
         except Exception as e:
             print(f"Erreur : {e}")
             time.sleep(5)
 
 if __name__ == "__main__":
-    print("🚀 Lancement du bot...")
-    # Envoie un premier message dès le démarrage, puis lance la boucle d'écoute permanente
     envoyer_telegram()
     ecouter_telegram()
