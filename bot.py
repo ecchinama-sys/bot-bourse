@@ -1,21 +1,21 @@
+import time
 import random
 import requests
 from datetime import datetime
 from groq import Groq
+import os
 
-# --- TES CLES API (À remplir avec tes propres clés) ---
+# --- TES CLES API (Récupérées depuis les variables d'environnement de l'hébergeur) ---
 GROQ_API_KEY = "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"          
 TELEGRAM_BOT_TOKEN = "8820955818:AAGtMB-LwbJSw7CS8uYWIMVVLkT-Lvkkd-s"  
 TELEGRAM_CHAT_ID = "6736922134"      
 NOTION_API_KEY = "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"
 NOTION_DATABASE_ID = "https://app.notion.com/p/3c2ff48f1aed803db912e3f32650c7a5?v=3c2ff48f1aed80499920000c65daf439&source=copy_link"
 
-# Initialisation directe du client Groq avec un modèle textuel stable
 client = Groq(api_key=GROQ_API_KEY)
 SELECTED_MODEL = "llama-3.1-70b-versatile"
 
 def add_to_notion(title, content):
-    """Enregistre l'article et l'analyse dans Notion avec le titre et la date du jour."""
     url = "https://api.notion.com/v1/pages"
     date_iso = datetime.now().strftime("%Y-%m-%d")
     headers = {
@@ -29,79 +29,62 @@ def add_to_notion(title, content):
             "Name": {"title": [{"text": {"content": title}}]},
             "Date": {"date": {"start": date_iso}}
         },
-        "children": [
-            {
-                "object": "block",
-                "type": "paragraph",
-                "paragraph": {
-                    "rich_text": [{"type": "text", "text": {"content": content[:2000]}}]
-                }
-            }
-        ]
+        "children": [{"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": content[:2000]}}]}}]
     }
-    response = requests.post(url, headers=headers, json=data)
-    return response.status_code
+    requests.post(url, headers=headers, json=data)
 
 def generer_analyse():
-    """Génère l'actualité boursière avec les faits au début et l'analyse d'expert à la fin."""
     angles = [
         "Focus sur la tech, les valeurs de croissance et l'intelligence artificielle sur les marchés.",
         "Focus sur l'inflation, les décisions des banques centrales (FED, BCE) et les taux d'intérêt.",
         "Focus sur les matières premières (pétrole, or) et les mouvements géopolitiques mondiaux.",
         "Focus sur les résultats d'entreprises, les actions en forte hausse/baisse et les conseils de rotation sectorielle."
     ]
-    
-    angle_choisi = random.choice(angles)
-    
     prompt = (
         f"Tu es un expert analyste financier renommé. Rédige un flash boursier et financier complet "
-        f"en suivant STRICTEMENT cet ordre dans la structure :\n"
-        f"1. Les faits marquants et l'actualité des marchés (ce qui s'est passé).\n"
-        f"2. Les indicateurs clés et les chiffres importants à retenir.\n"
-        f"3. Ton analyse d'expert et ton avis tranché (cette partie doit OBLIGATOIREMENT se trouver à la toute fin du texte).\n"
-        f"Angle prioritaire pour cette édition : {angle_choisi}. "
-        f"Ton style doit être professionnel, direct, percutant et orienté investisseur."
+        f"en suivant STRICTEMENT cet ordre : 1. Les faits marquants, 2. Les indicateurs clés, "
+        f"3. Ton analyse d'expert et ton avis tranché à la fin. Angle : {random.choice(angles)}"
     )
-    
-    completion = client.chat.completions.create(
-        model=SELECTED_MODEL,
-        messages=[{"role": "user", "content": prompt}]
-    )
+    completion = client.chat.completions.create(model=SELECTED_MODEL, messages=[{"role": "user", "content": prompt}])
     return str(completion.choices[0].message.content)
 
-def envoyer_telegram(message):
-    """Envoie le message sur Telegram."""
+def envoyer_telegram():
+    message = generer_analyse()
     titre = f"Flash Finance & Bourse - {datetime.now().strftime('%d/%m/%Y')}"
-    url_telegram = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    add_to_notion(titre, message)
     
+    url_telegram = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
         "text": f"📈 *{titre}*\n\n{message}",
-        "parse_mode": "Markdown"
+        "parse_mode": "Markdown",
+        "reply_markup": {
+            "inline_keyboard": [[{"text": "🔄 Régénérer un autre article", "callback_data": "regen"}]]
+        }
     }
     requests.post(url_telegram, json=payload)
 
-def main():
-    """Fonction principale du script exécutée par GitHub Actions."""
-    print("\n🚀 Lancement de l'analyse boursière...")
-
-    # Génération du contenu via l'IA
-    message_ia = generer_analyse()
-    
-    # Création du titre avec la date du jour
-    date_du_jour = datetime.now().strftime("%d/%m/%Y")
-    titre_page = f"Flash Finance & Bourse - {date_du_jour}"
-    
-    # Enregistrement Notion
-    status_notion = add_to_notion(titre_page, message_ia)
-    if status_notion == 200:
-        print("✅ Données enregistrées dans Notion avec succès.")
-    else:
-        print(f"⚠️ Erreur lors de l'enregistrement Notion (Code : {status_notion})")
-
-    # Envoi Telegram
-    envoyer_telegram(message_ia)
-    print("✅ Message envoyé sur Telegram avec succès !")
+def ecouter_telegram():
+    print("🤖 Bot démarré en écoute continue 24h/24...")
+    offset = None
+    while True:
+        try:
+            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates?timeout=30"
+            if offset:
+                url += f"&offset={offset}"
+            
+            response = requests.get(url).json()
+            if "result" in response:
+                for update in response["result"]:
+                    offset = update["update_id"] + 1
+                    if "callback_query" in update:
+                        query = update["callback_query"]
+                        if query["data"] == "regen":
+                            requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/answerCallbackQuery", json={"callback_query_id": query["id"], "text": "Génération d'une nouvelle analyse..."})
+                            envoyer_telegram()
+        except Exception as e:
+            print(f"Erreur : {e}")
+            time.sleep(5)
 
 if __name__ == "__main__":
-    main()
+    ecouter_telegram()
